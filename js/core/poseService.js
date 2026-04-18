@@ -77,6 +77,18 @@ export async function initPoseBackend() {
     null;
   const single = mv?.modelType?.SINGLEPOSE_LIGHTNING;
 
+  // TensorFlow Hub passou a redirecionar para o Kaggle, que frequentemente falha por CORS
+  // em sites estáticos como GitHub Pages. Permitimos hospedar os modelos no próprio repo
+  // e usar um modelUrl local como fallback.
+  const localMultiPoseUrl = new URL(
+    "../assets/models/movenet/multipose-lightning/model.json",
+    import.meta.url
+  ).href;
+  const localSinglePoseUrl = new URL(
+    "../assets/models/movenet/singlepose-lightning/model.json",
+    import.meta.url
+  ).href;
+
   try {
     if (multi) {
       detector = await poseDetection.createDetector(
@@ -87,10 +99,22 @@ export async function initPoseBackend() {
       throw new Error("MULTIPOSE indisponível");
     }
   } catch {
-    detector = await poseDetection.createDetector(
-      poseDetection.SupportedModels.MoveNet,
-      single ? { modelType: single } : {}
-    );
+    // Se falhar (ex.: CORS), tenta carregar de um caminho local.
+    try {
+      if (multi) {
+        detector = await poseDetection.createDetector(
+          poseDetection.SupportedModels.MoveNet,
+          { modelType: multi, modelUrl: localMultiPoseUrl }
+        );
+        return detector;
+      }
+      throw new Error("MULTIPOSE indisponível");
+    } catch {
+      detector = await poseDetection.createDetector(
+        poseDetection.SupportedModels.MoveNet,
+        single ? { modelType: single, modelUrl: localSinglePoseUrl } : { modelUrl: localSinglePoseUrl }
+      );
+    }
   }
 
   return detector;

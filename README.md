@@ -52,6 +52,19 @@ A arquitetura do código separa **detecção de pose**, **mapeamento para input 
 
 ---
 
+## Importante (GitHub Pages / CORS do MoveNet)
+
+O TensorFlow Hub (`tfhub.dev`) passou a redirecionar downloads de modelos TFJS para o **Kaggle**, e isso pode falhar com erro de **CORS** em sites estáticos (como GitHub Pages).
+
+Este projeto já tem **fallback** para carregar o MoveNet por um caminho local. Para isso, coloque os arquivos do modelo em:
+
+- `assets/models/movenet/multipose-lightning/model.json` (+ shards `.bin`)
+- `assets/models/movenet/singlepose-lightning/model.json` (+ shards `.bin`)
+
+Depois disso, o jogo carrega o modelo **da mesma origem** (sem CORS).
+
+---
+
 ## Como rodar localmente
 
 O projeto é **estático** (HTML, CSS, JS em módulos). Qualquer servidor HTTP na raiz do repositório serve.
