@@ -7,14 +7,6 @@ export const EMBEDDED_FRAGMENTS = [
       </div>
       <p id="loading-status" class="loading-status">Preparando…</p>
       <p id="loading-tip" class="loading-tip" aria-live="polite"></p>
-      <button
-        type="button"
-        id="btn-camera-start"
-        class="btn-home btn-camera-start"
-        hidden
-      >
-        Permitir câmera
-      </button>
     </div>
   </div>
 </div>`,
@@ -353,12 +345,33 @@ export const EMBEDDED_FRAGMENTS = [
       playsinline
       muted
     ></video>
+    <div
+      class="detection-camera-loading"
+      data-camera-loading
+      aria-hidden="true"
+      hidden
+    >
+      <div class="detection-camera-loading__card" role="status" aria-live="polite">
+        <span class="detection-camera-loading__spinner" aria-hidden="true"></span>
+        <span class="detection-camera-loading__text" data-camera-loading-text>
+          Carregando câmera…
+        </span>
+      </div>
+    </div>
     <canvas id="overlay-detection"></canvas>
   </div>
   <div class="detection-panel-anchor">
     <div class="game-panel-stack game-panel-stack--md detection-panel-stack">
       <div class="game-panel game-panel--detection detection-panel--bottom">
         <p id="status-text" class="detection-panel__text" aria-live="polite"></p>
+        <button
+          type="button"
+          id="btn-camera-start"
+          class="btn-home btn-camera-start"
+          hidden
+        >
+          Permitir câmera
+        </button>
       </div>
     </div>
   </div>

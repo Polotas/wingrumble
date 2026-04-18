@@ -5,7 +5,12 @@ import {
   isCameraContextOk,
 } from "./core/camera.js";
 import { CAMERA_FIT_COVER, getCameraFitMode } from "./core/cameraDisplayPrefs.js";
-import { initPoseBackend, startInferenceLoop } from "./core/poseService.js";
+import {
+  clearPoseCache,
+  initPoseBackend,
+  startInferenceLoop,
+  stopInferenceLoop,
+} from "./core/poseService.js";
 import { createReadyArenaScreen } from "./ui/readyArenaScreen.js";
 import { createSprintGame } from "./games/sprint100m/sprintGame.js";
 import { createBlockBreakerGame } from "./games/blockBreaker/blockBreakerGame.js";
@@ -428,50 +433,38 @@ function runScreenTransition(onMidTransition) {
  * @param {"single"|"multi"} [result.mode]
  */
 function formatResultsText(result) {
-  if (result.gameId === "collect") {
-    const s1 = result.scoreP1 ?? 0;
-    const s2 = result.scoreP2 ?? 0;
-    if (result.mode === "single") {
-      return `Pontuação: ${s1} pontos\n(Maçã +5, manga +10, melancia +30, bomba -20)`;
-    }
+  const mode = result.mode;
+  const lines = [];
+
+  if (mode === "multi") {
     const w = result.winner;
-    const winLine = w === 1 || w === 2 ? `Vencedor: P${w}\n` : "Empate\n";
-    return `${winLine}P1: ${s1} pontos\nP2: ${s2} pontos`;
+    if (w === 1 || w === 2) lines.push(`Vencedor: P${w}`);
   }
 
-  if (result.gameId === "cleanScreen") {
-    const s1 = result.scoreP1 ?? 0;
-    const s2 = result.scoreP2 ?? 0;
-    if (result.mode === "single") {
-      return `Pontuação: ${s1} pontos\n(Limpe manchas fazendo círculos com as mãos; +5 por círculo)`;
+  const hasScores =
+    Number.isFinite(result.scoreP1) ||
+    Number.isFinite(result.scoreP2) ||
+    Number.isFinite(result.scoreTotal);
+
+  if (hasScores) {
+    const s1 = Math.round(result.scoreP1 ?? 0);
+    const s2 = Math.round(result.scoreP2 ?? 0);
+    if (mode === "single") {
+      lines.push(`Pontuação: ${s1}`);
+    } else {
+      lines.push(`P1: ${s1}`);
+      lines.push(`P2: ${s2}`);
     }
-    const w = result.winner;
-    const winLine = w === 1 || w === 2 ? `Vencedor: P${w}\n` : "Empate\n";
-    return `${winLine}P1: ${s1} pontos\nP2: ${s2} pontos`;
+    return lines.join("\n");
   }
 
-  if (result.gameId === "blockBreaker") {
-    const s1 = result.scoreP1 ?? 0;
-    const s2 = result.scoreP2 ?? 0;
-    const total = result.scoreTotal ?? s1 + s2;
-    if (result.mode === "single") {
-      return `Pontuação: ${s1} pontos\n(8–10 caixas com PV 5–8; golpe rápido: até 3 de dano; +5 pts por PV retirado)`;
-    }
-    const w = result.winner;
-    const winLine =
-      w === 1 || w === 2 ? `Vencedor: P${w}\n` : "";
-    return `${winLine}P1: ${s1} pontos\nP2: ${s2} pontos\nTotal: ${total} pontos\n(Cada um destrói as caixas do seu lado; 8–10 caixas, PV 5–8; golpe rápido: até 3 de dano; +5 por PV)`;
-  }
-
-  const { winner, timeP1, timeP2, mode } = result;
+  const t1 = Number.isFinite(result.timeP1) ? result.timeP1 : 0;
+  const t2 = Number.isFinite(result.timeP2) ? result.timeP2 : 0;
   if (mode === "single") {
-    return `Tempo: ${timeP1.toFixed(2)} s\nMeta: 100 m`;
+    return `Tempo: ${t1.toFixed(2)} s`;
   }
-  const lines = [
-    `Vencedor: P${winner}`,
-    `P1: ${timeP1.toFixed(2)} s`,
-    `P2: ${timeP2.toFixed(2)} s`,
-  ];
+  lines.push(`P1: ${t1.toFixed(2)} s`);
+  lines.push(`P2: ${t2.toFixed(2)} s`);
   return lines.join("\n");
 }
 
@@ -579,6 +572,26 @@ function hideResultsPanel() {
 const DETECTION_STATUS_BASE =
   "Mostre as mãos para detetar.";
 
+function stopCameraSession() {
+  stopInferenceLoop();
+  clearPoseCache();
+  const videoEl = /** @type {HTMLVideoElement|null} */ (document.getElementById("camera"));
+  if (!videoEl) {
+    cameraAvailable = false;
+    return;
+  }
+  const stream = /** @type {MediaStream|null} */ (videoEl.srcObject || null);
+  if (stream?.getTracks) {
+    try {
+      stream.getTracks().forEach((t) => t.stop());
+    } catch {
+      /* ignore */
+    }
+  }
+  videoEl.srcObject = null;
+  cameraAvailable = false;
+}
+
 /**
  * Antes do jogo: zonas P1 (esquerda) / P2 (direita), mão visível, contagem 3-2-1 automática.
  * @param {"single"|"multi"} mode
@@ -589,6 +602,9 @@ function enterReadyArena(mode) {
   const overlayCountdown = document.getElementById("overlay-countdown");
   const statusText = document.getElementById("status-text");
   const screenDetection = document.getElementById("screen-detection");
+  const btnCameraStart = document.getElementById("btn-camera-start");
+  const camLoading = screenDetection?.querySelector?.("[data-camera-loading]");
+  const camLoadingText = screenDetection?.querySelector?.("[data-camera-loading-text]");
   if (!videoEl || !overlayDetection) return;
 
   gameMode = mode;
@@ -609,39 +625,143 @@ function enterReadyArena(mode) {
     statusText.textContent = DETECTION_STATUS_BASE;
   }
 
-  readyArena = createReadyArenaScreen({
-    video: videoEl,
-    overlayCanvas: overlayDetection,
-    gameMode: mode,
-    statusTextEl: statusText ?? undefined,
-    statusBaseText: DETECTION_STATUS_BASE,
-    onReady() {
-      if (readyCountdownLock || !overlayCountdown) return;
-      readyCountdownLock = true;
-      setGlobalFullscreenLocked(true);
-      try {
-        readyArena?.stop();
-      } catch {
-        /* ignore */
+  function setCameraLoading(on, text) {
+    if (!camLoading) return;
+    const show = Boolean(on);
+    camLoading.hidden = !show;
+    camLoading.setAttribute("aria-hidden", show ? "false" : "true");
+    if (camLoadingText && typeof text === "string" && text.length) {
+      camLoadingText.textContent = text;
+    }
+    if (!show && camLoadingText) {
+      camLoadingText.textContent = "";
+    }
+  }
+
+  /** Espera o vídeo ter dimensões / primeiro frame (evita overlay sumir antes da imagem aparecer). */
+  function waitForCameraPicture(video) {
+    return new Promise((resolve) => {
+      const ok = () =>
+        video.videoWidth > 1 && video.videoHeight > 1 && video.readyState >= 2;
+      if (ok()) {
+        requestAnimationFrame(() => resolve());
+        return;
       }
-      readyArena = null;
-      screenDetection?.classList.add("screen-detection--countdown-ui-hidden");
-      const wrapEl = document.getElementById("overlay-countdown-wrap");
-      void (async () => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        video.removeEventListener("loadeddata", finish);
+        video.removeEventListener("playing", finish);
+        video.removeEventListener("canplay", finish);
+        window.clearTimeout(tid);
+        requestAnimationFrame(() => resolve());
+      };
+      const tid = window.setTimeout(finish, 2500);
+      video.addEventListener("loadeddata", finish);
+      video.addEventListener("playing", finish);
+      video.addEventListener("canplay", finish);
+    });
+  }
+
+  function startArenaUi() {
+    readyArena = createReadyArenaScreen({
+      video: videoEl,
+      overlayCanvas: overlayDetection,
+      gameMode: mode,
+      statusTextEl: statusText ?? undefined,
+      statusBaseText: DETECTION_STATUS_BASE,
+      onReady() {
+        if (readyCountdownLock || !overlayCountdown) return;
+        readyCountdownLock = true;
+        setGlobalFullscreenLocked(true);
         try {
-          await goToGame({ startPaused: true });
-          await runStartCountdown(overlayCountdown, {
-            wrapEl: wrapEl ?? undefined,
-          });
-          currentGame?.resumeGameplay?.();
-        } finally {
-          readyCountdownLock = false;
-          screenDetection?.classList.remove("screen-detection--countdown-ui-hidden");
+          readyArena?.stop();
+        } catch {
+          /* ignore */
         }
-      })();
-    },
-  });
-  readyArena.start();
+        readyArena = null;
+        screenDetection?.classList.add("screen-detection--countdown-ui-hidden");
+        const wrapEl = document.getElementById("overlay-countdown-wrap");
+        void (async () => {
+          try {
+            await goToGame({ startPaused: true });
+            await runStartCountdown(overlayCountdown, {
+              wrapEl: wrapEl ?? undefined,
+            });
+            currentGame?.resumeGameplay?.();
+          } finally {
+            readyCountdownLock = false;
+            screenDetection?.classList.remove("screen-detection--countdown-ui-hidden");
+          }
+        })();
+      },
+    });
+    readyArena.start();
+  }
+
+  async function startCameraAndArena() {
+    if (!isCameraContextOk()) {
+      if (statusText) {
+        statusText.textContent =
+          "A câmera precisa de HTTPS ou localhost. Abra o site em https:// para calibrar.";
+      }
+      return;
+    }
+    if (btnCameraStart) {
+      btnCameraStart.hidden = true;
+      btnCameraStart.disabled = false;
+    }
+    try {
+      if (!videoEl.srcObject) {
+        setCameraLoading(true, "Carregando câmera…");
+        await setupCamera(videoEl);
+      }
+      await waitForCameraPicture(videoEl);
+      cameraAvailable = true;
+      setCameraLoading(false);
+      if (statusText) statusText.textContent = DETECTION_STATUS_BASE;
+      startInferenceLoop(videoEl);
+      startArenaUi();
+    } catch {
+      cameraAvailable = false;
+      setCameraLoading(false);
+      if (statusText) {
+        statusText.textContent =
+          "Não foi possível usar a câmera. Verifique as permissões do navegador e tente novamente.";
+      }
+      if (btnCameraStart) btnCameraStart.disabled = false;
+    }
+  }
+
+  // Se o browser exigir gesto (mobile), pedimos permissão ao entrar na calibração via botão.
+  const needsGesture = prefersCameraUserGesture();
+  const hasStream = Boolean(videoEl.srcObject);
+  if (!hasStream && needsGesture) {
+    if (btnCameraStart) {
+      btnCameraStart.hidden = false;
+      btnCameraStart.disabled = false;
+      setCameraLoading(true, "Toque em “Permitir câmera” para continuar");
+      btnCameraStart.onclick = async () => {
+        btnCameraStart.disabled = true;
+        if (statusText) statusText.textContent = "Abrindo câmera…";
+        setCameraLoading(true, "Carregando câmera…");
+        await startCameraAndArena();
+        if (cameraAvailable) {
+          btnCameraStart.hidden = true;
+          setCameraLoading(false);
+          if (statusText) statusText.textContent = DETECTION_STATUS_BASE;
+        }
+      };
+    } else {
+      // Sem botão disponível, tenta mesmo assim.
+      void startCameraAndArena();
+    }
+    return;
+  }
+
+  // Desktop/ambiente sem necessidade de gesto: solicita ao entrar na calibração.
+  void startCameraAndArena();
 }
 
 /**
@@ -831,7 +951,6 @@ async function boot() {
   const homeStatus = document.getElementById("home-status");
   const btnModeSingle = document.getElementById("btn-mode-single");
   const btnModeMulti = document.getElementById("btn-mode-multi");
-  const btnCameraStart = document.getElementById("btn-camera-start");
   const videoEl = document.getElementById("camera");
 
   if (!videoEl) {
@@ -847,54 +966,13 @@ async function boot() {
 
   cameraAvailable = false;
 
+  // A câmera só deve ser solicitada quando entrar em calibração (detecção) ou no minigame.
+  // Aqui apenas verificamos se o contexto é válido (HTTPS/localhost) e carregamos o modelo.
   if (!isCameraContextOk()) {
     setLoadingStatus(
-      "A câmera precisa de HTTPS ou localhost. No telemóvel, abra o mesmo site com https:// ou use um túnel (ex.: ngrok), não http:// só pelo IP.",
+      "A câmera precisa de HTTPS ou localhost. Quando for calibrar, abra o site em https:// (ou localhost).",
       { show: true },
     );
-    stopLoadingTips();
-  } else if (prefersCameraUserGesture()) {
-    if (btnCameraStart) {
-      setLoadingStatus("Toque em «Permitir câmera» para o navegador pedir acesso à câmera frontal.");
-      btnCameraStart.hidden = false;
-      await new Promise((resolve) => {
-        async function onCameraTap() {
-          btnCameraStart.disabled = true;
-          setLoadingStatus("A abrir a câmera…");
-          try {
-            await setupCamera(videoEl);
-            cameraAvailable = true;
-            btnCameraStart.hidden = true;
-            btnCameraStart.removeEventListener("click", onCameraTap);
-            resolve();
-          } catch {
-            cameraAvailable = false;
-            setLoadingStatus(
-              "Não foi possível usar a câmera. Verifique as permissões nas definições do navegador e toque de novo.",
-              { show: true },
-            );
-            stopLoadingTips();
-            btnCameraStart.disabled = false;
-          }
-        }
-        btnCameraStart.addEventListener("click", onCameraTap);
-      });
-    } else {
-      try {
-        await setupCamera(videoEl);
-        cameraAvailable = true;
-      } catch {
-        /* ignore */
-      }
-    }
-  } else {
-    setLoadingStatus("Abrindo câmera…");
-    try {
-      await setupCamera(videoEl);
-      cameraAvailable = true;
-    } catch {
-      /* Sem câmera: segue o fluxo para permitir testar telas no preview embutido (ex.: Cursor). */
-    }
   }
 
   // Mantemos o loading “limpo”: o carrossel de dicas é a UI principal.
@@ -909,12 +987,8 @@ async function boot() {
     return;
   }
 
-  startInferenceLoop(videoEl);
-
   if (homeStatus) {
-    homeStatus.textContent = cameraAvailable
-      ? "Escolha um ou dois jogadores."
-      : "Preview sem câmera: você pode testar o fluxo das telas. Para jogar de verdade, abra em localhost ou HTTPS e permita a câmera.";
+    homeStatus.textContent = "Escolha um ou dois jogadores.";
   }
   // Final do loading: parar dicas, mostrar "Pronto", esperar 1s e só então transicionar.
   stopLoadingTips();
@@ -1153,6 +1227,7 @@ function wireEvents() {
       readyArena = null;
     }
     readyCountdownLock = false;
+    stopCameraSession();
     setPhase("game-select");
   });
 
@@ -1179,6 +1254,7 @@ function wireEvents() {
     hideResultsPanel();
     document.getElementById("screen-game")?.classList.remove("screen-game--no-preview");
     moveVideoToCalibration();
+    stopCameraSession();
     setPhase("home");
   });
 }

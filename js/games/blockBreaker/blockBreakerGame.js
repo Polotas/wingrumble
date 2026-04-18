@@ -6,9 +6,26 @@ import {
   mapVideoKpToCanvas as mapKpVideoToCanvas,
 } from "../../core/videoFit.js";
 
-/** Número de caixas (solo = total; duo = por jogador). */
-const BLOCK_N_MIN = 8;
-const BLOCK_N_MAX = 10;
+/** Número de caixas (solo = total; duo = por jogador). Sempre 4×2. */
+const BLOCK_COUNT = 8;
+
+/** Texto flutuante por intensidade do golpe (damage 1–3). */
+const HIT_POPUP_MS = 620;
+const SCREEN_SHAKE_MS = 110;
+const DEBRIS_MS = 850;
+const DEBRIS_N_MIN = 10;
+const DEBRIS_N_MAX = 18;
+const DEBRIS_GRAVITY = 2100;
+
+/**
+ * @param {number} damage
+ * @returns {{ text: string; color: string }}
+ */
+function hitFeedbackForDamage(damage) {
+  if (damage >= 3) return { text: "DEUS!", color: "#1A237E", outline: "#FFFFFF" };
+  if (damage >= 2) return { text: "ÓTIMO!", color: "#2ECC71", outline: "#000000" };
+  return { text: "BOM!", color: "#FFD700", outline: "#000000" };
+}
 const BLOCK_HP_MIN = 5;
 const BLOCK_HP_MAX = 8;
 const KP_MIN_SCORE = 0.28;
@@ -34,13 +51,30 @@ const BLOCK_LAYOUT_SIZE_MULT = 2;
 /** Redução final do tamanho visual (0,75 = 25% mais pequenas). */
 const BLOCK_LAYOUT_VISUAL_SCALE = 0.75;
 
+const BLOCK_TINTS = [
+  { name: "Azul", color: "#3b82f6" },
+  { name: "Verde", color: "#22c55e" },
+  { name: "Vermelho", color: "#ef4444" },
+  { name: "Amarelo", color: "#facc15" },
+  { name: "Laranja", color: "#fb923c" },
+  { name: "Roxo", color: "#a855f7" },
+];
+
+function pickRandomTintColor() {
+  const i = Math.floor(Math.random() * BLOCK_TINTS.length);
+  return BLOCK_TINTS[i]?.color || "#94a3b8";
+}
+
+function randBetween(min, max) {
+  return min + Math.random() * (max - min);
+}
+
 const HAND_L_URL = new URL("../../../assets/minigame-break/hand_l.png", import.meta.url).href;
 const HAND_R_URL = new URL("../../../assets/minigame-break/hand_r.png", import.meta.url).href;
 
 const BOX_SPRITE_URLS = [
   new URL("../../../assets/minigame-break/boxes/box-1/box-1.png", import.meta.url).href,
   new URL("../../../assets/minigame-break/boxes/box-1/box-2.png", import.meta.url).href,
-  new URL("../../../assets/minigame-break/boxes/box-1/box-3.png", import.meta.url).href,
 ];
 
 const HIT_BOX_AUDIO_URL = new URL("../../../assets/hit_box.mp3", import.meta.url).href;
@@ -59,9 +93,9 @@ function playHitBoxSound() {
 let handSpriteL = null;
 /** @type {HTMLImageElement|null} */
 let handSpriteR = null;
-/** Índice 0 = intacta (≥70% PV), 1 = médio (≥40%), 2 = muito danificada (<40%). */
+/** Índice 0 = intacta (>50% PV), 1 = danificada (≤50% PV). */
 /** @type {(HTMLImageElement|null)[]} */
-let boxSprites = [null, null, null];
+let boxSprites = [null, null];
 /** altura/largura do sprite da caixa (atualizado ao carregar PNG). */
 let boxSpriteAspectRatio = 1;
 
@@ -95,13 +129,11 @@ let boxSpriteAspectRatio = 1;
 /**
  * @param {number} hp
  * @param {number} maxHp
- * @returns {0|1|2}
+ * @returns {0|1}
  */
 function boxSpriteIndexForHp(hp, maxHp) {
   const r = maxHp > 0 ? hp / maxHp : 0;
-  if (r >= 0.7) return 0;
-  if (r >= 0.4) return 1;
-  return 2;
+  return r > 0.5 ? 0 : 1;
 }
 
 function getBoxSpriteAspectRatio() {
@@ -180,6 +212,10 @@ export function createBlockBreakerGame(canvas, options = {}) {
    *   hitFlashUntil: number;
    *   hitShakeUntil: number;
    *   owner: 0 | 1;
+   *   tint: string;
+   *   renderScaleX: number;
+   *   renderScaleY: number;
+   *   renderRot: number;
    * }[]}
    */
   let blocks = [];
@@ -205,6 +241,16 @@ export function createBlockBreakerGame(canvas, options = {}) {
   const wristPrev = new Map();
   /** Último instante em que este punho acertou (cooldown). */
   const wristLastHitMs = new Map();
+
+  /** @type {{ x: number; y: number; text: string; color: string; startMs: number; duration: number }[]} */
+  let hitPopups = [];
+  /** `performance.now()` até quando aplica shake leve (tier 3). */
+  let screenShakeUntil = 0;
+  /**
+   * Pedaços ao destruir a caixa (partículas geométricas).
+   * @type {{ x: number; y: number; vx: number; vy: number; rot: number; vr: number; size: number; color: string; startMs: number; duration: number }[]}
+   */
+  let debris = [];
 
   function syncVideoContentRect() {
     const cw = canvas.width;
@@ -277,17 +323,9 @@ export function createBlockBreakerGame(canvas, options = {}) {
     return BLOCK_HP_MIN + Math.floor(Math.random() * (BLOCK_HP_MAX - BLOCK_HP_MIN + 1));
   }
 
-  function randomBlockCount() {
-    return BLOCK_N_MIN + Math.floor(Math.random() * (BLOCK_N_MAX - BLOCK_N_MIN + 1));
-  }
-
-  /** Dimensões da grelha para n blocos (8–10). */
-  function gridDimsForCount(n) {
-    if (n <= 6) return { cols: 3, rows: Math.ceil(n / 3) };
-    if (n === 7) return { cols: 4, rows: 2 };
-    if (n === 8) return { cols: 4, rows: 2 };
-    if (n === 9) return { cols: 3, rows: 3 };
-    return { cols: 5, rows: 2 };
+  /** Sempre 4 colunas × 2 filas (8 caixas por região). */
+  function gridDimsForCount() {
+    return { cols: 4, rows: 2 };
   }
 
   function resize() {
@@ -301,7 +339,7 @@ export function createBlockBreakerGame(canvas, options = {}) {
    * Coloca n blocos numa faixa horizontal [regionX, regionX+regionW] dentro do retângulo do vídeo `vcr`.
    */
   function layoutBlocksInRegion(n, owner, regionX, regionW, vcr) {
-    const { cols, rows } = gridDimsForCount(n);
+    const { cols, rows } = gridDimsForCount();
     const cwRef = vcr.w;
     const chRef = vcr.h;
     const gap = Math.max(8, Math.min(18, Math.round(Math.min(cwRef, chRef) * 0.014)));
@@ -347,6 +385,9 @@ export function createBlockBreakerGame(canvas, options = {}) {
       const col = i % cols;
       const row = Math.floor(i / cols);
       const mhp = randomBlockHp();
+      const scaleX = randBetween(0.9, 1.08);
+      const scaleY = randBetween(0.9, 1.12);
+      const rot = randBetween(-0.12, 0.12); // ~ -7º..+7º
       blocks.push({
         x: ox + col * (bw + gap),
         y: oy + row * (bh + gap),
@@ -361,6 +402,15 @@ export function createBlockBreakerGame(canvas, options = {}) {
         hitFlashUntil: 0,
         hitShakeUntil: 0,
         owner,
+        tint: pickRandomTintColor(),
+        renderScaleX: scaleX,
+        renderScaleY: scaleY,
+        renderRot: rot,
+        wobblePhase: Math.random() * Math.PI * 2,
+        wobbleAmp: 0,
+        squashX: 1,
+        squashY: 1,
+        lastHitMs: 0,
       });
     }
   }
@@ -505,6 +555,16 @@ export function createBlockBreakerGame(canvas, options = {}) {
       b.x += b.vx * dt;
       b.y += b.vy * dt;
       b.vx *= Math.max(0, 1 - 2.2 * dt);
+      // Damping visual (gelatina) — só para render; colisão continua AABB.
+      if (typeof b.wobbleAmp === "number") {
+        b.wobbleAmp *= Math.max(0, 1 - 3.8 * dt);
+      }
+      if (typeof b.squashX === "number") {
+        b.squashX += (1 - b.squashX) * Math.min(1, 7.5 * dt);
+      }
+      if (typeof b.squashY === "number") {
+        b.squashY += (1 - b.squashY) * Math.min(1, 7.5 * dt);
+      }
     }
 
     for (const b of blocks) {
@@ -522,7 +582,12 @@ export function createBlockBreakerGame(canvas, options = {}) {
       if (b.destroyed) continue;
       if (b.y + b.h > floorY) {
         b.y = floorY - b.h;
-        if (b.vy > 80) b.vy *= -0.12;
+        if (b.vy > 80) {
+          b.vy *= -0.12;
+          b.wobbleAmp = Math.min(4.5, (b.wobbleAmp || 0) + 0.9);
+          b.squashX = Math.max(b.squashX || 1, 1.08);
+          b.squashY = Math.min(b.squashY || 1, 0.92);
+        }
         else b.vy = 0;
       }
     }
@@ -616,13 +681,58 @@ export function createBlockBreakerGame(canvas, options = {}) {
           const imp = 1 + (applied - 1) * 0.12;
           b.vy += HIT_IMPULSE_Y * imp;
           b.vx += (Math.random() - 0.5) * 180;
-          if (b.hp <= 0) b.destroyed = true;
+          b.lastHitMs = nowMs;
+          b.wobbleAmp = Math.min(4.5, (b.wobbleAmp || 0) + 0.95 * damage);
+          b.squashX = 1 + 0.06 * damage;
+          b.squashY = 1 - 0.05 * damage;
+          if (b.hp <= 0) {
+            b.destroyed = true;
+            spawnBoxDebris(b, nowMs, damage);
+          }
           const pi = pIdx === 1 ? 1 : 0;
           scores[pi] += POINTS_PER_HIT * applied;
           wristLastHitMs.set(`${pIdx}-${side}`, nowMs);
+          const fb = hitFeedbackForDamage(damage);
+          hitPopups.push({
+            x: b.x + b.w / 2,
+            y: b.y + b.h * 0.38,
+            text: fb.text,
+            color: fb.color,
+            startMs: nowMs,
+            duration: HIT_POPUP_MS,
+          });
+          if (damage >= 3) {
+            screenShakeUntil = nowMs + SCREEN_SHAKE_MS;
+          }
           break;
         }
       }
+    }
+  }
+
+  function spawnBoxDebris(b, nowMs, intensity) {
+    const n = Math.round(
+      Math.max(DEBRIS_N_MIN, Math.min(DEBRIS_N_MAX, DEBRIS_N_MIN + intensity * 2.5)),
+    );
+    const cx = b.x + b.w / 2;
+    const cy = b.y + b.h / 2;
+    const base = Math.max(6, Math.min(18, Math.min(b.w, b.h) * 0.12));
+    const col = b.tint || "rgba(248,250,252,0.95)";
+    for (let i = 0; i < n; i += 1) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = (4.2 + Math.random() * 5.8) * (1 + 0.22 * intensity);
+      debris.push({
+        x: cx + (Math.random() - 0.5) * base,
+        y: cy + (Math.random() - 0.5) * base,
+        vx: Math.cos(a) * sp * 85,
+        vy: (Math.sin(a) * sp - 1.2) * 85,
+        rot: Math.random() * Math.PI * 2,
+        vr: (Math.random() - 0.5) * 0.35,
+        size: base * (0.6 + Math.random() * 0.9),
+        color: col,
+        startMs: nowMs,
+        duration: DEBRIS_MS * (0.85 + Math.random() * 0.35),
+      });
     }
   }
 
@@ -774,14 +884,47 @@ export function createBlockBreakerGame(canvas, options = {}) {
       const si = boxSpriteIndexForHp(b.hp, b.maxHp);
       const img = boxSprites[si];
       if (img && img.complete && img.naturalWidth >= 1) {
-        ctx.drawImage(img, drawX, drawY, b.w, b.h);
+        const cx = drawX + b.w / 2;
+        const cy = drawY + b.h / 2;
+        const age = nowMs - (b.lastHitMs || 0);
+        const decay = age > 0 ? Math.exp(-age / 260) : 0;
+        const wob =
+          Math.sin(nowMs * 0.018 + (b.wobblePhase || 0)) *
+          (b.wobbleAmp || 0) *
+          decay *
+          0.06;
+        const sxRaw =
+          (b.renderScaleX || 1) *
+          (1 + wob + ((b.squashX || 1) - 1) * decay);
+        const syRaw =
+          (b.renderScaleY || 1) *
+          (1 - wob + ((b.squashY || 1) - 1) * decay);
+        const sx = Math.max(0.78, Math.min(1.28, sxRaw));
+        const sy = Math.max(0.78, Math.min(1.28, syRaw));
+        const rw = b.w * sx;
+        const rh = b.h * sy;
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(b.renderRot || 0);
+        ctx.drawImage(img, -rw / 2, -rh / 2, rw, rh);
+        // Tint por caixa (sprites em tons cinza).
+        ctx.globalCompositeOperation = "source-atop";
+        ctx.globalAlpha = 0.75;
+        ctx.fillStyle = b.tint || "#94a3b8";
+        ctx.fillRect(-rw / 2, -rh / 2, rw, rh);
+        // Preserva sombras/contraste do sprite
+        ctx.globalCompositeOperation = "multiply";
+        ctx.globalAlpha = 0.35;
+        ctx.fillStyle = b.tint || "#94a3b8";
+        ctx.fillRect(-rw / 2, -rh / 2, rw, rh);
+        ctx.restore();
       } else {
         const hue = single
           ? 210 + (i % 3) * 35
           : b.owner === 0
             ? 188 + (i % 4) * 14
             : 22 + (i % 4) * 12;
-        ctx.fillStyle = `hsl(${hue} 62% 48%)`;
+        ctx.fillStyle = b.tint || `hsl(${hue} 62% 48%)`;
         ctx.strokeStyle = "rgba(255,255,255,0.35)";
         ctx.lineWidth = 2;
         const r = 8;
@@ -838,6 +981,69 @@ export function createBlockBreakerGame(canvas, options = {}) {
   }
 
   /** Pontuação dentro da área do vídeo (mesmo aspect ratio que a câmara). */
+  function drawHitPopups(nowMs) {
+    const basePx = Math.round(Math.min(26, Math.max(18, canvas.width * 0.028)));
+    for (const p of hitPopups) {
+      const age = nowMs - p.startMs;
+      const u = Math.min(1, age / p.duration);
+      const alpha = 1 - u * u;
+      const rise = -52 * u;
+      const scale = 1 + 0.12 * Math.sin(u * Math.PI);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.font = `900 ${Math.round(basePx * scale)}px system-ui,sans-serif`;
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = "rgba(0,0,0,0.55)";
+      ctx.shadowBlur = 10;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(p.text, p.x, p.y + rise);
+      ctx.restore();
+    }
+  }
+
+  function updateAndCullDebris(dt, nowMs) {
+    if (!debris.length) return;
+    debris = debris.filter((d) => nowMs - d.startMs < d.duration);
+    if (!debris.length) return;
+    const g = DEBRIS_GRAVITY;
+    for (const d of debris) {
+      d.vy += g * dt;
+      d.x += d.vx * dt;
+      d.y += d.vy * dt;
+      d.vx *= Math.max(0, 1 - 2.4 * dt);
+      d.rot += d.vr;
+    }
+  }
+
+  function drawDebris(nowMs) {
+    if (!debris.length) return;
+    for (const d of debris) {
+      const age = nowMs - d.startMs;
+      const u = Math.min(1, age / d.duration);
+      const a = (1 - u) * (1 - u);
+      ctx.save();
+      ctx.globalAlpha = Math.min(0.95, 0.15 + a);
+      ctx.translate(d.x, d.y);
+      ctx.rotate(d.rot);
+      ctx.fillStyle = d.color;
+      const s = d.size;
+      if (Math.random() < 0.4) {
+        // retângulo
+        ctx.fillRect(-s * 0.5, -s * 0.35, s, s * 0.7);
+      } else {
+        // triângulo
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.55, s * 0.4);
+        ctx.lineTo(s * 0.6, 0);
+        ctx.lineTo(-s * 0.25, -s * 0.45);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+
   function drawScore() {
     syncVideoContentRect();
     const v = videoContentRect;
@@ -903,6 +1109,7 @@ export function createBlockBreakerGame(canvas, options = {}) {
       if (!gameplayPaused) {
         stepPhysics(dt);
         tryDamageBlocks(t);
+        updateAndCullDebris(dt, t);
 
         if (single) {
           if (remainingCount() === 0) {
@@ -964,9 +1171,21 @@ export function createBlockBreakerGame(canvas, options = {}) {
 
     if (!finished) {
       if (!gameplayPaused) {
+        hitPopups = hitPopups.filter((p) => t - p.startMs < p.duration);
+        debris = debris.filter((d) => t - d.startMs < d.duration);
+        ctx.save();
+        if (t < screenShakeUntil) {
+          const w = (screenShakeUntil - t) / SCREEN_SHAKE_MS;
+          const mag = 5.5 * w;
+          const ph = t * 0.09;
+          ctx.translate(Math.sin(ph) * mag, Math.cos(ph * 1.2) * mag);
+        }
         drawBlocks(t);
+        drawDebris(t);
+        drawHitPopups(t);
         drawHandSprites(t);
         drawScore();
+        ctx.restore();
         commitAllWristPrev(getGamePoses(), t);
       }
       drawPreviewPlayerTags();
@@ -994,10 +1213,13 @@ export function createBlockBreakerGame(canvas, options = {}) {
       scores = [0, 0];
       ownerClearTime[0] = -1;
       ownerClearTime[1] = -1;
-      blocksThisGameSingle = randomBlockCount();
-      blocksPerPlayerDuo = randomBlockCount();
+      blocksThisGameSingle = BLOCK_COUNT;
+      blocksPerPlayerDuo = BLOCK_COUNT;
       wristPrev.clear();
       wristLastHitMs.clear();
+      hitPopups = [];
+      screenShakeUntil = 0;
+      debris = [];
       resize();
       window.addEventListener("resize", resize);
       if (video) window.addEventListener("resize", resizePreviewOverlay);
