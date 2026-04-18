@@ -77,46 +77,57 @@ export async function initPoseBackend() {
     null;
   const single = mv?.modelType?.SINGLEPOSE_LIGHTNING;
 
-  // TensorFlow Hub passou a redirecionar para o Kaggle, que frequentemente falha por CORS
-  // em sites estáticos como GitHub Pages. Permitimos hospedar os modelos no próprio repo
-  // e usar um modelUrl local como fallback.
+  // O TensorFlow Hub redireciona para o Kaggle, que quebra por CORS em hosts estáticos
+  // (GitHub Pages etc.). Tentamos carregar primeiro os arquivos do modelo hospedados no
+  // próprio repositório (assets/models/...), mantendo o fetch na mesma origem. Se o
+  // arquivo local não existir, caímos para o padrão do pose-detection.
   const localMultiPoseUrl = new URL(
-    "../assets/models/movenet/multipose-lightning/model.json",
+    "../../assets/models/movenet/multipose-lightning/model.json",
     import.meta.url
   ).href;
   const localSinglePoseUrl = new URL(
-    "../assets/models/movenet/singlepose-lightning/model.json",
+    "../../assets/models/movenet/singlepose-lightning/model.json",
     import.meta.url
   ).href;
 
-  try {
-    if (multi) {
-      detector = await poseDetection.createDetector(
-        poseDetection.SupportedModels.MoveNet,
-        { modelType: multi }
-      );
-    } else {
-      throw new Error("MULTIPOSE indisponível");
-    }
-  } catch {
-    // Se falhar (ex.: CORS), tenta carregar de um caminho local.
+  async function exists(url) {
     try {
-      if (multi) {
-        detector = await poseDetection.createDetector(
-          poseDetection.SupportedModels.MoveNet,
-          { modelType: multi, modelUrl: localMultiPoseUrl }
-        );
-        return detector;
-      }
-      throw new Error("MULTIPOSE indisponível");
+      const res = await fetch(url, { method: "HEAD", cache: "no-store" });
+      return res.ok;
     } catch {
-      detector = await poseDetection.createDetector(
-        poseDetection.SupportedModels.MoveNet,
-        single ? { modelType: single, modelUrl: localSinglePoseUrl } : { modelUrl: localSinglePoseUrl }
-      );
+      return false;
     }
   }
 
+  const hasLocalMulti = multi ? await exists(localMultiPoseUrl) : false;
+  const hasLocalSingle = single ? await exists(localSinglePoseUrl) : false;
+
+  if (multi) {
+    try {
+      detector = await poseDetection.createDetector(
+        poseDetection.SupportedModels.MoveNet,
+        hasLocalMulti
+          ? { modelType: multi, modelUrl: localMultiPoseUrl }
+          : { modelType: multi }
+      );
+      return detector;
+    } catch (err) {
+      console.warn("Falha ao carregar MULTIPOSE, tentando SINGLEPOSE:", err);
+    }
+  }
+
+  const singleConfig = single
+    ? hasLocalSingle
+      ? { modelType: single, modelUrl: localSinglePoseUrl }
+      : { modelType: single }
+    : hasLocalSingle
+    ? { modelUrl: localSinglePoseUrl }
+    : {};
+
+  detector = await poseDetection.createDetector(
+    poseDetection.SupportedModels.MoveNet,
+    singleConfig
+  );
   return detector;
 }
 
