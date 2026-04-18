@@ -1,0 +1,15 @@
+/* Fade entre seleção de minigame e calibração */
+.transition-curtain {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  opacity: 0;
+  background: rgba(8, 8, 14, 0.94);
+  transition: opacity 280ms ease-in-out;
+}
+
+.transition-curtain.transition-curtain--visible {
+  opacity: 1;
+  pointer-events: auto;
+}

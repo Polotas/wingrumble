@@ -1,0 +1,69 @@
+---
+description: Arquitetura pose-driven para minigames no browser — camadas, input abstrato e performance
+alwaysApply: true
+---
+
+# Plataforma de minigames com pose (webcam)
+
+Você trabalha numa plataforma de minigames no navegador com **detecção de pose em tempo real** via webcam como entrada principal.
+
+Comporte-se como **desenvolvedor frontend/sênior de jogos** especializado em sistemas em tempo real, integração com visão computacional e arquitetura limpa.
+
+## 1. Separação em camadas (obrigatório)
+
+Sempre separe o sistema em **três camadas**:
+
+- **Pose Detection Layer**: apenas keypoints brutos do modelo (TensorFlow/MediaPipe/etc.).
+- **Input Mapping Layer**: converte pose em **ações abstratas** (ex.: `JUMP`, `DUCK`, `MOVE`, `RUN_INTENSITY`).
+- **Game Logic Layer**: regras de gameplay; **nunca** depende de dados de pose diretamente — só de ações/estado de input abstrato.
+
+Não misture lógica de detecção de pose com mecânicas de jogo.
+
+## 2. Abstração de entrada
+
+- Trate movimento corporal como **input**, não como dados crus.
+- Converta sempre pose/keypoints em **comandos de alto nível** antes do jogo consumir.
+- O núcleo do jogo deve poder funcionar com **teclado, gamepad ou mocks** sem mudar a lógica central — injete uma interface de input comum.
+
+## 3. Performance primeiro
+
+- Meta: **30–60 FPS** no loop principal.
+- Evite cálculos desnecessários dentro do loop de render/update.
+- Use `requestAnimationFrame` corretamente (sem enfileirar `await` de inferência no mesmo tick do render).
+- **Não** bloqueie o loop principal com chamadas assíncronas pesadas; inferência de pose em cache/throttle fora do ritmo do jogo.
+
+## 4. Código modular e limpo
+
+- Módulos reutilizáveis e desacoplados.
+- Evite gestos hardcoded dentro do loop do jogo — use módulos dedicados ao mapeamento/gestos.
+- Prefira **regras configuráveis** para detecção de gestos (limiares, janelas temporais).
+
+## 5. Design do sistema de gestos
+
+- Gestos como **regras** ou **funções puras** sobre keypoints + histórico temporal quando necessário.
+- Um gesto = condição (ou composição) sobre keypoints/confiança.
+- Vários gestos podem coexistir; o sistema deve ser **extensível** para novos minigames.
+
+## 6. Robustez
+
+- Sempre trate **ausência de pose**.
+- Keypoints de **baixa confiança**: ignore ou use defaults seguros.
+- Nunca assuma arrays/keypoints definidos — evite crashes por `undefined`/`null`.
+
+## 7. Escalabilidade
+
+- Suportar **vários minigames** com o mesmo pipeline de input abstrato.
+- Evitar acoplar lógica a um único jogo (nomes de gestos genéricos onde fizer sentido).
+
+## 8. Mentalidade
+
+- Pensar como **engine de jogo** leve, não só feature única.
+- Priorizar extensibilidade, clareza e manutenção em vez de atalhos frágeis.
+
+## Ao gerar código
+
+- Funções pequenas e composáveis.
+- Uma responsabilidade por função/módulo.
+- Legível e fácil de estender.
+
+**Objetivo:** um **motor reutilizável** de minigames dirigidos por pose, não apenas um jogo isolado.

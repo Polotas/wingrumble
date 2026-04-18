@@ -1,0 +1,117 @@
+/* Uma tela principal visível por fase (overlays ficam fora desta lista) */
+
+body.phase-loading #screen-home,
+body.phase-loading #screen-mode-select,
+body.phase-loading #screen-quick-play,
+body.phase-loading #screen-game-select,
+body.phase-loading #screen-detection,
+body.phase-loading #screen-game {
+  display: none !important;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Animações de troca de tela (menus) */
+body.phase-loading #screen-loading,
+body.phase-home #screen-home,
+body.phase-mode-select #screen-mode-select,
+body.phase-quick-play #screen-quick-play,
+body.phase-game-select #screen-game-select {
+  opacity: 1;
+  transform: scale(1);
+  transform-origin: center;
+  transition: opacity 220ms, transform 220ms;
+  transition-timing-function: cubic-bezier(0.55, 0.085, 0.68, 0.53); /* easeInQuad aprox */
+  will-change: opacity, transform;
+}
+
+body.phase-loading.ui-transitioning #screen-loading,
+body.phase-home.ui-transitioning #screen-home,
+body.phase-mode-select.ui-transitioning #screen-mode-select,
+body.phase-quick-play.ui-transitioning #screen-quick-play,
+body.phase-game-select.ui-transitioning #screen-game-select {
+  opacity: 0;
+  transform: scale(0.96);
+}
+
+body.phase-loading.ui-transition-enter #screen-loading,
+body.phase-home.ui-transition-enter #screen-home,
+body.phase-mode-select.ui-transition-enter #screen-mode-select,
+body.phase-quick-play.ui-transition-enter #screen-quick-play,
+body.phase-game-select.ui-transition-enter #screen-game-select {
+  opacity: 0;
+  transform: scale(1.04);
+  transition-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94); /* easeOutQuad aprox */
+}
+
+body.phase-home #screen-loading,
+body.phase-home #screen-mode-select,
+body.phase-home #screen-quick-play,
+body.phase-home #screen-game-select,
+body.phase-home #screen-detection,
+body.phase-home #screen-game {
+  display: none !important;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+body.phase-mode-select #screen-loading,
+body.phase-mode-select #screen-home,
+body.phase-mode-select #screen-quick-play,
+body.phase-mode-select #screen-game-select,
+body.phase-mode-select #screen-detection,
+body.phase-mode-select #screen-game {
+  display: none !important;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+body.phase-quick-play #screen-loading,
+body.phase-quick-play #screen-home,
+body.phase-quick-play #screen-mode-select,
+body.phase-quick-play #screen-game-select,
+body.phase-quick-play #screen-detection,
+body.phase-quick-play #screen-game {
+  display: none !important;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+body.phase-game-select #screen-loading,
+body.phase-game-select #screen-home,
+body.phase-game-select #screen-mode-select,
+body.phase-game-select #screen-quick-play,
+body.phase-game-select #screen-detection,
+body.phase-game-select #screen-game {
+  display: none !important;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+body.phase-detection #screen-loading,
+body.phase-detection #screen-home,
+body.phase-detection #screen-mode-select,
+body.phase-detection #screen-quick-play,
+body.phase-detection #screen-game-select,
+body.phase-detection #screen-game {
+  display: none !important;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+body.phase-game #screen-loading,
+body.phase-game #screen-home,
+body.phase-game #screen-mode-select,
+body.phase-game #screen-quick-play,
+body.phase-game #screen-game-select,
+body.phase-game #screen-detection {
+  display: none !important;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+body.phase-game #screen-game {
+  display: block !important;
+  visibility: visible;
+  pointer-events: auto;
+}

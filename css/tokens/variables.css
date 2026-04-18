@@ -1,0 +1,16 @@
+:root {
+  --bg-tile-w: min(420px, 55vw);
+  --bg-tile-h: calc(var(--bg-tile-w) * 3334 / 5001);
+
+  --game-panel-radius: 22px;
+  --game-btn-radius: 12px;
+  --game-text: #2f2941;
+  --game-text-muted: #2f2941;
+  --game-shadow-fill: #2f2941;
+  --game-panel-fill: #c4def3;
+  --game-panel-border: #2f2941;
+  --game-panel-border-light: #f5f2ff;
+
+  --font-title: "Luckiest Guy", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Fredoka", "Segoe UI", system-ui, sans-serif;
+}

@@ -1,0 +1,97 @@
+.victory-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  pointer-events: none;
+}
+
+.overlay-countdown-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.overlay-countdown-wrap--visible {
+  opacity: 1;
+}
+
+.overlay-countdown-dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.overlay-countdown-wrap--no-dim .overlay-countdown-dim {
+  background: transparent;
+}
+
+.overlay-countdown {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-title);
+  font-size: clamp(4rem, 18vw, 9rem);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: rgba(248, 250, 252, 0.96);
+  text-shadow: 0 4px 32px rgba(0, 0, 0, 0.6);
+}
+
+.overlay-countdown--message {
+  padding: 24px;
+  text-align: center;
+  white-space: pre-line;
+  line-height: 1.2;
+  font-size: clamp(2rem, 6vw, 3.25rem);
+  letter-spacing: 0.02em;
+}
+
+.panel-results {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(2, 6, 23, 0.35);
+  backdrop-filter: blur(4px);
+}
+
+.panel-results[hidden] {
+  display: none !important;
+}
+
+.panel-results__card {
+  max-width: 400px;
+  width: 100%;
+}
+
+.panel-results__title {
+  margin: 0 0 12px;
+  font-family: var(--font-title);
+  font-size: 1.5rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  color: var(--game-text);
+}
+
+.panel-results__body {
+  margin: 0 0 22px;
+  white-space: pre-line;
+  line-height: 1.55;
+  font-size: 0.98rem;
+  color: var(--game-text-muted);
+}
+
+.panel-results__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}

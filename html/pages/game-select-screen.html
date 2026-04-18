@@ -1,0 +1,122 @@
+<div id="screen-game-select" class="screen screen-game-select">
+  <header class="game-select-top-bar" aria-label="Navegação">
+    <div class="game-select-top-bar__left">
+      <button type="button" id="btn-game-select-back" class="btn-screen-back game-select-top-bar__back">
+        Voltar
+      </button>
+    </div>
+    <div class="game-select-top-bar__center"></div>
+    <div class="game-select-top-bar__right">
+      <p
+        id="game-select-players"
+        class="game-select-players-badge game-select-top-bar__badge"
+        aria-live="polite"
+      >
+        2 Players
+      </p>
+    </div>
+  </header>
+  <div class="game-select-content">
+    <img
+      class="game-select-hero"
+      src="assets/home-screen/SelectGame-corrido.png"
+      alt="Select Game"
+      decoding="async"
+    />
+  </div>
+
+  <div class="game-panel-stack game-panel-stack--md">
+    <div class="game-panel game-panel--game-select">
+      <div class="game-carousel" aria-label="Carrossel de jogos">
+        <button
+          type="button"
+          class="game-carousel__nav game-carousel__nav--prev"
+          aria-label="Jogo anterior"
+        >
+          ‹
+        </button>
+
+        <div class="game-carousel__viewport" data-game-carousel-viewport>
+          <div class="game-carousel__track" data-game-carousel-track>
+            <button
+              type="button"
+              id="btn-pick-blocks"
+              class="game-card game-card--active game-carousel__item"
+              data-game-id="blockBreaker"
+            >
+              <span class="game-card__name">
+                <img
+                  class="game-card__icon"
+                  src="assets/select-game-screen/breack_blocks.png"
+                  alt="Quebra-blocos"
+                  decoding="async"
+                />
+              </span>
+              <span class="game-card__desc">Destrua 6 blocos com as mãos — no duo, cooperativo no mesmo conjunto</span>
+            </button>
+
+            <button
+              type="button"
+              id="btn-pick-clean"
+              class="game-card game-card--active game-carousel__item"
+              data-game-id="cleanScreen"
+            >
+              <span class="game-card__name">
+                <img
+                  class="game-card__icon"
+                  src="assets/select-game-screen/dust_swipe.png"
+                  alt="Limpeza"
+                  decoding="async"
+                />
+              </span>
+              <span class="game-card__desc">Faça círculos com as mãos para limpar manchas</span>
+            </button>
+
+            <button
+              type="button"
+              id="btn-pick-collect"
+              class="game-card game-card--active game-carousel__item"
+              data-game-id="collect"
+            >
+              <span class="game-card__name">
+                <img
+                  class="game-card__icon"
+                  src="assets/select-game-screen/FruitCollect.png"
+                  alt="Coleta"
+                  decoding="async"
+                />
+              </span>
+              <span class="game-card__desc">Junte as mãos para formar um cesto e pegar frutas (cuidado com a bomba)</span>
+            </button>
+
+            <button
+              type="button"
+              id="btn-pick-sprint"
+              class="game-card game-card--soon game-carousel__item"
+              data-game-id="sprint100m"
+              disabled
+              aria-disabled="true"
+            >
+              <span class="game-card__name">Sprint 100 m</span>
+              <span class="game-card__desc">Indisponível no momento</span>
+            </button>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          class="game-carousel__nav game-carousel__nav--next"
+          aria-label="Próximo jogo"
+        >
+          ›
+        </button>
+      </div>
+
+      <div class="game-carousel__confirm">
+        <button type="button" id="btn-game-select-confirm" class="btn-panel">
+          Confirmar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,3 @@
+# Netlify: evita cache agressivo de JS/CSS em dev/preview
+/*
+  Cache-Control: no-cache, must-revalidate

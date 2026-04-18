@@ -1,0 +1,57 @@
+<div id="screen-quick-play" class="screen screen-quick-play">
+  <header class="quick-play-top-bar" aria-label="Navegação">
+    <div class="quick-play-top-bar__left">
+      <button type="button" id="btn-quick-play-back" class="btn-screen-back quick-play-top-bar__back">
+        Voltar
+      </button>
+    </div>
+    <div class="quick-play-top-bar__center"></div>
+    <div class="quick-play-top-bar__right">
+      <p
+        id="quick-play-players"
+        class="game-select-players-badge quick-play-top-bar__badge"
+        aria-live="polite"
+      >
+        2 Players
+      </p>
+    </div>
+  </header>
+
+  <div class="quick-play-content">
+    <div class="quick-play-hero-wrap">
+      <img
+        class="quick-play-hero"
+        src="assets/home-screen/QuickMatch-corrido.png"
+        alt="Quick Match"
+        decoding="async"
+      />
+    </div>
+    <div class="game-panel-stack game-panel-stack--md">
+      <div class="game-panel game-panel--game-select quick-play-panel">
+        <h2 class="quick-play-subtitle">Número de rounds</h2>
+
+        <fieldset class="quick-play-series" aria-label="Selecione a série">
+          <label class="quick-play-series__opt">
+            <input type="radio" name="quick-play-bestof" value="3" checked />
+            <span class="quick-play-series__label">3</span>
+          </label>
+          <label class="quick-play-series__opt">
+            <input type="radio" name="quick-play-bestof" value="5" />
+            <span class="quick-play-series__label">5</span>
+          </label>
+          <label class="quick-play-series__opt">
+            <input type="radio" name="quick-play-bestof" value="7" />
+            <span class="quick-play-series__label">7</span>
+          </label>
+        </fieldset>
+
+        <div class="quick-play-actions">
+          <button type="button" id="btn-quick-play-start" class="btn-panel btn-panel--quickmatch">
+            Iniciar Quick Match
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+

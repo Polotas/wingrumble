@@ -1,0 +1,64 @@
+.screen-home {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: transparent;
+}
+
+.home-wrap {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 100px;
+}
+
+.home-logo-wrap {
+  width: 100%;
+  max-width: 440px;
+  margin-top: -10px;
+}
+
+.home-logo {
+  display: block;
+  width: 90%;
+  height: auto;
+  margin: 0 auto;
+  filter: drop-shadow(0 10px 2px rgba(0, 0, 0, 0.2));
+}
+
+.home-title {
+  margin: 0 0 12px;
+  font-family: var(--font-title);
+  font-size: clamp(1.75rem, 5vw, 2.15rem);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
+  color: var(--game-text);
+}
+
+.home-status {
+  margin: 0 0 24px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--game-text-muted);
+}
+
+.home-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.home-hint {
+  margin: 20px 0 0;
+  font-size: 0.82rem;
+  color: var(--game-text-muted);
+  line-height: 1.45;
+  opacity: 0.92;
+}

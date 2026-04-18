@@ -1,0 +1,51 @@
+body {
+  margin: 0;
+  overflow: hidden;
+  position: relative;
+  min-height: 100vh;
+  background: #0a0a0f;
+  font-family: var(--font-body);
+  font-weight: 500;
+  color: #e8e8ef;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: #b8d9f0;
+  background-image: url("../../assets/v1043-084a.jpg");
+  background-repeat: repeat;
+  background-size: var(--bg-tile-w) var(--bg-tile-h);
+  background-position: 0 0;
+  animation: bg-pattern-drift 100s linear infinite;
+}
+
+@keyframes bg-pattern-drift {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: var(--bg-tile-w) var(--bg-tile-h);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before {
+    animation: none;
+  }
+}
+
+.screen {
+  position: relative;
+  z-index: 1;
+  width: 100vw;
+  min-height: 100vh;
+}
+
+.app-root {
+  position: relative;
+  z-index: 1;
+}

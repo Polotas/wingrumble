@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Wing Rumble</title>
+  <link rel="stylesheet" href="css/main.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
+</head>
+<body class="phase-loading splash-active">
+  <div id="splash-screen" class="splash-screen" aria-hidden="false">
+    <img
+      class="splash-screen__logo"
+      src="assets/logo.png"
+      alt="Wing Rumble"
+      decoding="async"
+      fetchpriority="high"
+    />
+  </div>
+  <div id="app-root" class="app-root"></div>
+  <button
+    type="button"
+    id="btn-global-fullscreen"
+    class="btn-global-fullscreen"
+    aria-label="Tela cheia"
+  >
+    <svg
+      class="btn-global-fullscreen__icon"
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        d="M9 5H6.5C5.67 5 5 5.67 5 6.5V9M15 5H17.5C18.33 5 19 5.67 19 6.5V9M9 19H6.5C5.67 19 5 18.33 5 17.5V15M15 19H17.5C18.33 19 19 18.33 19 17.5V15"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+      />
+    </svg>
+  </button>
+  <!-- Import dinâmico com query única evita ficar preso a main.js antigo em cache após refresh. -->
+  <script type="module">
+    // Splash inicial (logo) antes do painel de loading.
+    const SPLASH_MS = 5000;
+    const SPLASH_OUT_MS = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches
+      ? 0
+      : 420;
+    const splashEl = document.getElementById("splash-screen");
+
+    function startApp() {
+      import(`./js/main.js?m=${Date.now()}`).catch((e) => {
+        const r = document.getElementById("app-root");
+        if (r) {
+          r.innerHTML =
+            "<p style=\"padding:24px;font-family:system-ui\">Falha ao carregar o script principal. Recarregue a página.</p>";
+        }
+        console.error(e);
+      });
+    }
+
+    window.setTimeout(() => {
+      if (!splashEl) {
+        document.body.classList.remove("splash-active");
+        startApp();
+        return;
+      }
+      splashEl.classList.add("splash-screen--hiding");
+      window.setTimeout(() => {
+        splashEl.remove();
+        document.body.classList.remove("splash-active");
+        startApp();
+      }, SPLASH_OUT_MS);
+    }, SPLASH_MS);
+  </script>
+</body>
+</html>

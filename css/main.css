@@ -1,0 +1,17 @@
+/* Entrada única: ordem importa (tokens → layout → componentes → páginas) */
+@import url("base/reset.css");
+@import url("tokens/fonts.css");
+@import url("tokens/variables.css");
+@import url("layout/body.css");
+@import url("components/game-panel.css");
+@import url("components/buttons.css");
+@import url("pages/loading.css");
+@import url("pages/splash.css");
+@import url("pages/home.css");
+@import url("pages/game-select.css");
+@import url("pages/quick-play.css");
+@import url("pages/detection.css");
+@import url("pages/game.css");
+@import url("layout/phases.css");
+@import url("pages/overlays.css");
+@import url("pages/transition.css");

@@ -1,0 +1,64 @@
+<div id="screen-mode-select" class="screen screen-mode-select">
+  <header class="mode-select-top-bar" aria-label="Navegação">
+    <div class="mode-select-top-bar__left">
+      <button type="button" id="btn-mode-select-back" class="btn-screen-back mode-select-top-bar__back">
+        Voltar
+      </button>
+    </div>
+    <div class="mode-select-top-bar__center"></div>
+    <div class="mode-select-top-bar__right">
+      <p
+        id="mode-select-players"
+        class="game-select-players-badge mode-select-top-bar__badge"
+        aria-live="polite"
+      >
+        2 Players
+      </p>
+    </div>
+  </header>
+  <div class="mode-select-hero-wrap">
+    <img
+      class="mode-select-hero"
+      src="assets/home-screen/GAmeMode.png"
+      alt="Game Mode"
+      decoding="async"
+    />
+  </div>
+  <div class="mode-select-content">
+    <ul class="game-select-list mode-select-list" role="list">
+      <li class="game-select-item mode-select-item">
+        <button
+          type="button"
+          id="btn-mode-quick"
+          class="game-card game-card--active mode-select-card"
+        >
+          <span class="game-card__name">
+            <img
+              class="game-card__icon"
+              src="assets/home-screen/QuickMatch.png"
+              alt="Quick Play"
+              decoding="async"
+            />
+          </span>
+        </button>
+      </li>
+      <li class="game-select-item mode-select-item">
+        <button
+          type="button"
+          id="btn-mode-minigames"
+          class="game-card game-card--active mode-select-card"
+        >
+          <span class="game-card__name">
+            <img
+              class="game-card__icon"
+              src="assets/home-screen/SelectGame.png"
+              alt="Selecionar minigames"
+              decoding="async"
+            />
+          </span>
+        </button>
+      </li>
+    </ul>
+  </div>
+</div>
+
