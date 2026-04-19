@@ -341,6 +341,17 @@
   box-shadow: none;
 }
 
+/* No carrossel, o hover padrão de `.game-card` não deve substituir o scale do item
+   (senão o `translateY` do hover apaga o `scale(0.9)` e parece que “cresce”). */
+.screen-game-select .game-carousel__item:hover:not(:disabled),
+.screen-game-select .game-carousel__item:active:not(:disabled) {
+  transform: scale(0.9);
+}
+.screen-game-select .game-carousel__item.is-selected:hover:not(:disabled),
+.screen-game-select .game-carousel__item.is-selected:active:not(:disabled) {
+  transform: scale(1.06);
+}
+
 .screen-game-select .game-carousel__item .game-card__name {
   height: auto;
   display: flex;
@@ -379,6 +390,32 @@
 .game-carousel__item.is-selected {
   transform: scale(1.06);
   opacity: 1;
+}
+
+@keyframes gameSelectPop {
+  0% {
+    transform: scale(1.06);
+    filter: drop-shadow(0 10px 2px rgba(0, 0, 0, 0.2));
+  }
+  45% {
+    transform: scale(1.095);
+    filter: drop-shadow(0 14px 6px rgba(0, 0, 0, 0.22));
+  }
+  100% {
+    transform: scale(1.06);
+    filter: drop-shadow(0 10px 2px rgba(0, 0, 0, 0.2));
+  }
+}
+
+/* Animação do item recém-selecionado no slider */
+.screen-game-select .game-carousel__item.is-selected.is-just-selected .game-card__icon {
+  animation: gameSelectPop 260ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen-game-select .game-carousel__item.is-selected.is-just-selected .game-card__icon {
+    animation: none;
+  }
 }
 
 .game-carousel__nav {
@@ -481,6 +518,13 @@
 .screen-game-select #btn-game-select-confirm:active:not(:disabled) {
   transform: translateY(2px);
   box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35), 0 2px 0 #222221;
+}
+
+/* Em telas estreitas o utilizador confirma ao tocar no cartão do jogo. */
+@media (max-width: 720px) {
+  .screen-game-select .game-carousel__confirm {
+    display: none;
+  }
 }
 
 @media (max-width: 520px) {

@@ -40,7 +40,7 @@ A arquitetura do código separa **detecção de pose**, **mapeamento para input 
 | `assets/end-screen/` | Telas de vitória (solo / P1 / P2) e `assets/coroa.png`. |
 | `assets/fonts/` | **Fredoka** e **Luckiest Guy** (veja `OFL.txt` / `LICENSE.txt` nas pastas das fontes). |
 | `assets/v1043-084a.jpg` | Textura de fundo na interface. |
-| `assets/audio_*.mp3`, `hit_box.mp3` | Sons de vitória, ambiente e efeitos. |
+| `assets/audios/*.mp3` | Sons de vitória, ambiente e efeitos. |
 
 ---
 

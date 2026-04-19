@@ -9,6 +9,18 @@
   background: transparent;
 }
 
+.home-debug-btn {
+  position: fixed;
+  top: calc(16px + env(safe-area-inset-top, 0px));
+  right: calc(16px + env(safe-area-inset-right, 0px));
+  z-index: 12;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  pointer-events: auto;
+}
+
 .home-wrap {
   width: 100%;
   max-width: 440px;

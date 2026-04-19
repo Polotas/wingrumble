@@ -1,0 +1,94 @@
+<div id="screen-ranking" class="screen screen-ranking">
+  <header class="ranking-top-bar" aria-label="Navegação">
+    <div class="ranking-top-bar__left">
+      <button type="button" id="btn-ranking-back" class="btn-screen-back ranking-top-bar__back">
+        Voltar
+      </button>
+    </div>
+    <div class="ranking-top-bar__center"></div>
+    <div class="ranking-top-bar__right"></div>
+  </header>
+
+  <section
+    class="ranking-view ranking-view--list"
+    id="ranking-view-list"
+    aria-label="Selecione um minigame"
+  >
+    <h1 class="ranking-title">Ranking</h1>
+    <ul class="ranking-game-list" role="list">
+      <li class="ranking-game-item">
+        <button
+          type="button"
+          class="game-card game-card--active ranking-game-card"
+          data-ranking-game="blockBreaker"
+        >
+          <span class="game-card__name">
+            <img
+              class="game-card__icon"
+              src="assets/select-game-screen/breack_blocks.png"
+              alt="Quebra-blocos"
+              decoding="async"
+            />
+          </span>
+          <span class="game-card__desc">Quebra-blocos</span>
+        </button>
+      </li>
+      <li class="ranking-game-item">
+        <button
+          type="button"
+          class="game-card game-card--active ranking-game-card"
+          data-ranking-game="cleanScreen"
+        >
+          <span class="game-card__name">
+            <img
+              class="game-card__icon"
+              src="assets/select-game-screen/dust_swipe.png"
+              alt="Limpeza"
+              decoding="async"
+            />
+          </span>
+          <span class="game-card__desc">Limpeza</span>
+        </button>
+      </li>
+      <li class="ranking-game-item">
+        <button
+          type="button"
+          class="game-card game-card--active ranking-game-card"
+          data-ranking-game="collect"
+        >
+          <span class="game-card__name">
+            <img
+              class="game-card__icon"
+              src="assets/select-game-screen/FruitCollect.png"
+              alt="Coleta"
+              decoding="async"
+            />
+          </span>
+          <span class="game-card__desc">Coleta</span>
+        </button>
+      </li>
+    </ul>
+  </section>
+
+  <section
+    class="ranking-view ranking-view--detail"
+    id="ranking-view-detail"
+    aria-label="Top 10"
+    hidden
+  >
+    <div class="ranking-detail-header">
+      <img
+        id="ranking-detail-icon"
+        class="ranking-detail-icon"
+        src=""
+        alt=""
+        decoding="async"
+      />
+      <h2 id="ranking-detail-title" class="ranking-detail-title">Minigame</h2>
+    </div>
+    <ol id="ranking-detail-list" class="ranking-list" role="list"></ol>
+    <p id="ranking-detail-empty" class="ranking-empty" hidden>
+      Ainda sem recordes. Jogue em Um jogador para começar!
+    </p>
+  </section>
+</div>

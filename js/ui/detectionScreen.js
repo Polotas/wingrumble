@@ -22,13 +22,33 @@ const POSE_CONNECTIONS = [
   ["right_knee", "right_ankle"],
 ];
 
-const KP_MIN_SCORE = 0.25;
+const DEFAULT_MIN_SCORE = 0.25;
 const STABLE_FRAMES_NEEDED = 20;
 
 const SKELETON_COLORS = [
   "rgba(0, 255, 200, 0.9)",
   "rgba(255, 180, 80, 0.95)",
 ];
+
+const KP_ALIAS_PT = {
+  nose: "Nariz",
+  left_eye: "Olho E",
+  right_eye: "Olho D",
+  left_ear: "Orelha E",
+  right_ear: "Orelha D",
+  left_shoulder: "Ombro E",
+  right_shoulder: "Ombro D",
+  left_elbow: "Cotovelo E",
+  right_elbow: "Cotovelo D",
+  left_wrist: "Pulso E",
+  right_wrist: "Pulso D",
+  left_hip: "Quadril E",
+  right_hip: "Quadril D",
+  left_knee: "Joelho E",
+  right_knee: "Joelho D",
+  left_ankle: "Tornozelo E",
+  right_ankle: "Tornozelo D",
+};
 
 function findKeypoint(keypoints, name) {
   return keypoints.find((k) => k.name === name);
@@ -48,7 +68,16 @@ function mapKeypointToCanvas(kp, video, canvas, mirror) {
   );
 }
 
-function drawSkeleton(ctx, pose, video, canvas, mirror, strokeStyle, fillStyle) {
+function drawSkeleton(
+  ctx,
+  pose,
+  video,
+  canvas,
+  mirror,
+  strokeStyle,
+  fillStyle,
+  minScore,
+) {
   const keypoints = pose.keypoints;
   const byName = (name) => findKeypoint(keypoints, name);
 
@@ -59,7 +88,7 @@ function drawSkeleton(ctx, pose, video, canvas, mirror, strokeStyle, fillStyle) 
   for (const [a, b] of POSE_CONNECTIONS) {
     const ka = byName(a);
     const kb = byName(b);
-    if (!ka || !kb || ka.score < KP_MIN_SCORE || kb.score < KP_MIN_SCORE) continue;
+    if (!ka || !kb || ka.score < minScore || kb.score < minScore) continue;
     const pa = mapKeypointToCanvas(ka, video, canvas, mirror);
     const pb = mapKeypointToCanvas(kb, video, canvas, mirror);
     ctx.beginPath();
@@ -69,7 +98,7 @@ function drawSkeleton(ctx, pose, video, canvas, mirror, strokeStyle, fillStyle) 
   }
 
   for (const kp of keypoints) {
-    if (kp.score < KP_MIN_SCORE) continue;
+    if (kp.score < minScore) continue;
     const p = mapKeypointToCanvas(kp, video, canvas, mirror);
     ctx.beginPath();
     ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
@@ -77,9 +106,9 @@ function drawSkeleton(ctx, pose, video, canvas, mirror, strokeStyle, fillStyle) 
   }
 }
 
-function drawHeadLabel(ctx, pose, video, canvas, mirror, text, color) {
+function drawHeadLabel(ctx, pose, video, canvas, mirror, text, color, minScore) {
   const nose = findKeypoint(pose.keypoints, "nose");
-  if (!nose || nose.score < KP_MIN_SCORE) return;
+  if (!nose || nose.score < minScore) return;
   const p = mapKeypointToCanvas(nose, video, canvas, mirror);
   ctx.font = "bold 18px system-ui,sans-serif";
   ctx.textAlign = "center";
@@ -96,16 +125,37 @@ function drawHeadLabel(ctx, pose, video, canvas, mirror, text, color) {
   ctx.fillText(text, p.x, p.y - 14);
 }
 
-function hasStablePerson(pose) {
+function drawKeypointLabels(ctx, pose, video, canvas, mirror, minScore) {
+  const keypoints = pose.keypoints;
+  ctx.save();
+  ctx.font = "700 12px system-ui,sans-serif";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "rgba(0,0,0,0.7)";
+  ctx.fillStyle = "rgba(248, 250, 252, 0.95)";
+  for (const kp of keypoints) {
+    if (kp.score < minScore) continue;
+    const label = KP_ALIAS_PT[kp.name] || kp.name;
+    const p = mapKeypointToCanvas(kp, video, canvas, mirror);
+    const tx = p.x + 8;
+    const ty = p.y;
+    ctx.strokeText(label, tx, ty);
+    ctx.fillText(label, tx, ty);
+  }
+  ctx.restore();
+}
+
+function hasStablePerson(pose, minScore) {
   const kp = pose.keypoints;
   const nose = findKeypoint(kp, "nose");
   const ls = findKeypoint(kp, "left_shoulder");
   const rs = findKeypoint(kp, "right_shoulder");
   if (!nose || !ls || !rs) return false;
   return (
-    nose.score >= KP_MIN_SCORE &&
-    ls.score >= KP_MIN_SCORE &&
-    rs.score >= KP_MIN_SCORE
+    nose.score >= minScore &&
+    ls.score >= minScore &&
+    rs.score >= minScore
   );
 }
 
@@ -114,13 +164,34 @@ function hasStablePerson(pose) {
  * @param {HTMLVideoElement} opts.video
  * @param {HTMLCanvasElement} opts.overlayCanvas
  * @param {"single"|"multi"} [opts.gameMode]
+ * @param {boolean} [opts.showKeypointLabels]
+ * @param {boolean} [opts.debugMode] — até 2 pessoas; ignora `gameMode` para limite de poses
+ * @param {() => number} [opts.getMinScore] — limiar dinâmico (0–1) para linhas/pontos/labels
  */
 export function createDetectionScreen(opts) {
-  const { video, overlayCanvas, onStableChange, gameMode = "multi" } = opts;
+  const {
+    video,
+    overlayCanvas,
+    onStableChange,
+    gameMode = "multi",
+    showKeypointLabels,
+    debugMode,
+    getMinScore,
+  } = opts;
   const ctx = overlayCanvas.getContext("2d");
   let rafId = 0;
   let stableFrames = 0;
   let lastStable = false;
+
+  function resolveMinScore() {
+    if (typeof getMinScore === "function") {
+      const v = getMinScore();
+      if (typeof v === "number" && Number.isFinite(v)) {
+        return Math.max(0, Math.min(1, v));
+      }
+    }
+    return DEFAULT_MIN_SCORE;
+  }
 
   function resizeOverlay() {
     const w = Math.round(video.clientWidth || video.getBoundingClientRect().width);
@@ -135,8 +206,11 @@ export function createDetectionScreen(opts) {
     resizeOverlay();
 
     const mirror = true;
+    const minScore = resolveMinScore();
     let poses = getPlayerPoses();
-    if (gameMode === "single") {
+    if (debugMode) {
+      poses = poses.slice(0, 2);
+    } else if (gameMode === "single") {
       poses = poses.slice(0, 1);
     }
     ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
@@ -146,12 +220,15 @@ export function createDetectionScreen(opts) {
       const stroke = SKELETON_COLORS[i] || "rgba(200,200,200,0.8)";
       const fill =
         i === 0 ? "rgba(255, 255, 80, 0.95)" : "rgba(255, 200, 120, 0.95)";
-      drawSkeleton(ctx, pose, video, overlayCanvas, mirror, stroke, fill);
-      drawHeadLabel(ctx, pose, video, overlayCanvas, mirror, labels[i], stroke);
+      drawSkeleton(ctx, pose, video, overlayCanvas, mirror, stroke, fill, minScore);
+      drawHeadLabel(ctx, pose, video, overlayCanvas, mirror, labels[i], stroke, minScore);
+      if (showKeypointLabels) {
+        drawKeypointLabels(ctx, pose, video, overlayCanvas, mirror, minScore);
+      }
     });
 
     const all = getPlayerPoses();
-    if (all.length > 0 && hasStablePerson(all[0])) {
+    if (all.length > 0 && hasStablePerson(all[0], minScore)) {
       stableFrames += 1;
     } else {
       stableFrames = 0;

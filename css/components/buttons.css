@@ -31,6 +31,22 @@
   box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35), 0 3px 0 #5a5470;
 }
 
+.btn-home.btn-home--ghost {
+  color: #153530;
+  background: #f0ecfc;
+  box-shadow: inset 0 0 0 2px var(--game-panel-border-light), 0 4px 0 var(--game-shadow-fill);
+}
+
+.btn-home.btn-home--ghost:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.6), 0 6px 0 var(--game-shadow-fill);
+}
+
+.btn-home.btn-home--ghost:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.4), 0 2px 0 var(--game-shadow-fill);
+}
+
 .btn-continue,
 #btn-continue {
   padding: 12px 26px;

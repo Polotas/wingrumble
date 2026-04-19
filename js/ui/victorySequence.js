@@ -17,7 +17,7 @@ const CROWN_URL = new URL("../../assets/coroa.png", import.meta.url).href;
 const URL_VITORIA_SOLO = new URL("../../assets/end-screen/vitoria.png", import.meta.url).href;
 const URL_VITORIA_P1 = new URL("../../assets/end-screen/vitoria_p1.png", import.meta.url).href;
 const URL_VITORIA_P2 = new URL("../../assets/end-screen/vitoria_p2.png", import.meta.url).href;
-const AUDIO_WIN_URL = new URL("../../assets/audio_win.mp3", import.meta.url).href;
+const AUDIO_WIN_URL = new URL("../../assets/audios/audio_win.mp3", import.meta.url).href;
 
 function playWinSound() {
   try {

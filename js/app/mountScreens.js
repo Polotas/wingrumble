@@ -10,6 +10,7 @@ const FRAGMENT_PATHS = [
   "../../html/pages/mode-select-screen.html",
   "../../html/pages/quick-play-screen.html",
   "../../html/pages/game-select-screen.html",
+  "../../html/pages/ranking-screen.html",
   "../../html/pages/detection-screen.html",
   "../../html/pages/game-screen.html",
   "../../html/pages/overlay-countdown.html",

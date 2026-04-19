@@ -1,4 +1,13 @@
 <div id="screen-home" class="screen screen-home">
+  <button
+    type="button"
+    id="btn-home-debug"
+    class="btn-panel btn-panel--ghost home-debug-btn"
+    aria-label="Debug (câmera e pose)"
+    hidden
+  >
+    Debug
+  </button>
   <div class="home-wrap">
     <div class="home-logo-wrap">
       <img class="home-logo" src="assets/logo.png" alt="Wing Rumble" decoding="async" />
@@ -12,6 +21,9 @@
           </button>
           <button type="button" id="btn-mode-multi" class="btn-home" disabled>
             Dois jogadores
+          </button>
+          <button type="button" id="btn-home-ranking" class="btn-home btn-home--ghost">
+            Ranking
           </button>
         </div>
         <p class="home-hint">Use a câmera em um lugar bem iluminado e deixe o corpo visível.</p>

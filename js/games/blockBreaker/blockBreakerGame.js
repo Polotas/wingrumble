@@ -1,3 +1,4 @@
+import { getBlockBreakerHandSpritesEnabled } from "../../core/blockBreakerDisplayPrefs.js";
 import { getPlayerPoses, sortPosesByMirroredScreenX } from "../../core/poseService.js";
 import { getCameraFitMode } from "../../core/cameraDisplayPrefs.js";
 import {
@@ -77,7 +78,7 @@ const BOX_SPRITE_URLS = [
   new URL("../../../assets/minigame-break/boxes/box-1/box-2.png", import.meta.url).href,
 ];
 
-const HIT_BOX_AUDIO_URL = new URL("../../../assets/hit_box.mp3", import.meta.url).href;
+const HIT_BOX_AUDIO_URL = new URL("../../../assets/audios/hit_box.mp3", import.meta.url).href;
 
 function playHitBoxSound() {
   try {
@@ -835,7 +836,7 @@ export function createBlockBreakerGame(canvas, options = {}) {
 
   /** Sprites nos punhos visíveis; escala ligeira quando a velocidade já permite dano. */
   function drawHandSprites(nowMs) {
-    if (!video) return;
+    if (!video || !getBlockBreakerHandSpritesEnabled()) return;
     const imgL = handSpriteL;
     const imgR = handSpriteR;
     if (

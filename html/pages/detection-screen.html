@@ -2,64 +2,100 @@
   <button type="button" id="btn-detection-back" class="btn-screen-back">
     Voltar
   </button>
-  <div class="detection-top-anchor">
-    <div class="game-panel-stack game-panel-stack--sm detection-top-stack">
-      <div class="game-panel game-panel--detection detection-panel--top">
-        <p class="detection-panel__title">Selecione o tipo de visualização</p>
-        <div
-          class="camera-fit-toggle"
-          role="group"
-          aria-label="Tipo de visualização da câmara"
+  <div
+    id="detection-controls-panel"
+    class="game-panel game-panel--detection detection-controls-panel debug-detection-panel--dock"
+  >
+    <div class="detection-controls-panel__fit">
+      <p class="detection-panel__title">Visualização da câmera</p>
+      <div
+        class="camera-fit-toggle camera-fit-toggle--panel"
+        role="group"
+        aria-label="Tipo de visualização da câmera"
+      >
+        <button
+          type="button"
+          id="btn-camera-fit-contain"
+          class="camera-fit-toggle__btn"
+          aria-pressed="true"
+          aria-label="Proporção da câmera"
         >
-          <button
-            type="button"
-            id="btn-camera-fit-contain"
-            class="camera-fit-toggle__btn"
-            aria-pressed="true"
-            aria-label="Proporção da câmara"
+          <svg
+            class="camera-fit-toggle__icon"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+            focusable="false"
           >
-            <svg
-              class="camera-fit-toggle__icon"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-              focusable="false"
-            >
-              <rect x="4" y="5" width="16" height="14" rx="2.5" stroke="currentColor" stroke-width="2" />
-              <rect x="7" y="8" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="2" opacity="0.65" />
-            </svg>
-            <span class="camera-fit-toggle__label">Proporção</span>
-          </button>
-          <button
-            type="button"
-            id="btn-camera-fit-cover"
-            class="camera-fit-toggle__btn"
-            aria-pressed="false"
-            aria-label="Tela cheia"
+            <rect x="4" y="5" width="16" height="14" rx="2.5" stroke="currentColor" stroke-width="2" />
+            <rect x="7" y="8" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="2" opacity="0.65" />
+          </svg>
+          <span class="camera-fit-toggle__label">Proporção</span>
+        </button>
+        <button
+          type="button"
+          id="btn-camera-fit-cover"
+          class="camera-fit-toggle__btn"
+          aria-pressed="false"
+          aria-label="Tela cheia"
+        >
+          <svg
+            class="camera-fit-toggle__icon"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+            focusable="false"
           >
-            <svg
-              class="camera-fit-toggle__icon"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-              focusable="false"
-            >
-              <path
-                d="M9 5H6.5C5.67 5 5 5.67 5 6.5V9M15 5H17.5C18.33 5 19 5.67 19 6.5V9M9 19H6.5C5.67 19 5 18.33 5 17.5V15M15 19H17.5C18.33 19 19 18.33 19 17.5V15"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-              />
-            </svg>
-            <span class="camera-fit-toggle__label">Tela cheia</span>
-          </button>
-        </div>
+            <path
+              d="M9 5H6.5C5.67 5 5 5.67 5 6.5V9M15 5H17.5C18.33 5 19 5.67 19 6.5V9M9 19H6.5C5.67 19 5 18.33 5 17.5V15M15 19H17.5C18.33 19 19 18.33 19 17.5V15"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            />
+          </svg>
+          <span class="camera-fit-toggle__label">Tela cheia</span>
+        </button>
+      </div>
+    </div>
+    <div id="debug-detection-extra" class="debug-detection-extra" hidden>
+      <p class="detection-panel__title">Debug — detecção</p>
+      <label class="debug-detection-panel__label" for="debug-detection-score">
+        Confiança mínima dos pontos (score)
+      </label>
+      <div class="debug-detection-panel__row">
+        <input
+          id="debug-detection-score"
+          class="debug-detection-panel__range"
+          type="range"
+          min="0"
+          max="100"
+          value="25"
+          step="1"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="25"
+          aria-label="Confiança mínima da detecção"
+        />
+        <output id="debug-detection-score-value" class="debug-detection-panel__value" for="debug-detection-score"
+          >0.25</output
+        >
+      </div>
+      <div class="debug-detection-extra__field">
+        <label class="debug-detection-checkbox-label" for="debug-blockbreaker-hand-sprites">
+          <input
+            type="checkbox"
+            id="debug-blockbreaker-hand-sprites"
+            class="debug-detection-checkbox"
+            checked
+          />
+          <span>Sprites das mãos (Quebra-blocos)</span>
+        </label>
       </div>
     </div>
   </div>

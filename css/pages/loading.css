@@ -77,3 +77,18 @@
 .screen-loading.screen-loading--ready .loading-tip {
   display: none;
 }
+
+.app-version {
+  position: absolute;
+  right: calc(12px + env(safe-area-inset-right, 0px));
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--game-text-muted);
+  opacity: 0.65;
+  pointer-events: none;
+  user-select: none;
+}

@@ -12,12 +12,25 @@ import {
   stopInferenceLoop,
 } from "./core/poseService.js";
 import { createReadyArenaScreen } from "./ui/readyArenaScreen.js";
+import { createDetectionScreen } from "./ui/detectionScreen.js";
+import { bindDetectionCameraFitControls } from "./ui/detectionCameraFitControls.js";
+import {
+  getBlockBreakerHandSpritesEnabled,
+  setBlockBreakerHandSpritesEnabled,
+} from "./core/blockBreakerDisplayPrefs.js";
 import { createSprintGame } from "./games/sprint100m/sprintGame.js";
 import { createBlockBreakerGame } from "./games/blockBreaker/blockBreakerGame.js";
 import { createCleanGame } from "./games/cleanScreen/cleanGame.js";
 import { createCollectGame } from "./games/collect/collectGame.js";
 import { runEndCountdown, runStartCountdown } from "./ui/countdown.js";
 import { runVictorySequence } from "./ui/victorySequence.js";
+import {
+  extractCandidateFromResult,
+  qualifiesForTop,
+  saveScore,
+  sanitizeName,
+} from "./core/rankingStorage.js";
+import { enterRankingScreen, wireRankingScreen } from "./ui/rankingScreen.js";
 
 /** @type {"single"|"multi"} */
 let gameMode = "multi";
@@ -42,6 +55,8 @@ let quickPlay = {
 
 /** @type {ReturnType<createReadyArenaScreen>|null} */
 let readyArena = null;
+/** @type {ReturnType<createDetectionScreen>|null} */
+let debugDetection = null;
 /** Evita disparar a contagem duas vezes. */
 let readyCountdownLock = false;
 /** @type {{ start: (opts?: { startPaused?: boolean }) => void; stop: () => void; resumeGameplay?: () => void }|null} */
@@ -72,6 +87,13 @@ const LOADING_TIPS = [
 
 /** @type {{ items: HTMLButtonElement[]; index: number; viewport: HTMLElement|null; track: HTMLElement|null; navPrev: HTMLButtonElement|null; navNext: HTMLButtonElement|null; confirmBtn: HTMLButtonElement|null } | null} */
 let gameCarousel = null;
+
+/** Destino ao clicar em Voltar na tela de detecção (calibração → game-select; debug da home → home). */
+let detectionReturnPhase = "game-select";
+/** Limiar dinâmico (0–1) para overlay de debug. */
+const debugScoreThresholdRef = { value: 0.25 };
+/** Cleanup dos botões contain/cover no modo debug (sem `readyArena`). */
+let debugCameraFitUnbind = null;
 
 function stopLoadingTips() {
   if (loadingTipsTimer) window.clearInterval(loadingTipsTimer);
@@ -110,6 +132,7 @@ function setPhase(phase) {
     "phase-mode-select",
     "phase-quick-play",
     "phase-game-select",
+    "phase-ranking",
     "phase-detection",
     "phase-game"
   );
@@ -121,8 +144,43 @@ function setPhase(phase) {
     "mode-select": "phase-mode-select",
     "quick-play": "phase-quick-play",
     "game-select": "phase-game-select",
+    ranking: "phase-ranking",
   };
   root.classList.add(map[phase] || "phase-home");
+  if (phase === "home") syncHomeDebugButton();
+}
+
+function syncHomeDebugButton() {
+  const btn = document.getElementById("btn-home-debug");
+  if (btn) btn.hidden = !isLocalDebugAllowed();
+}
+
+function hideDebugDetectionPanel() {
+  const extra = document.getElementById("debug-detection-extra");
+  if (extra) extra.hidden = true;
+}
+
+function showDebugDetectionPanel() {
+  const extra = document.getElementById("debug-detection-extra");
+  if (extra) extra.hidden = false;
+}
+
+function syncBlockBreakerHandSpritesCheckbox() {
+  const cb = /** @type {HTMLInputElement|null} */ (
+    document.getElementById("debug-blockbreaker-hand-sprites")
+  );
+  if (cb) cb.checked = getBlockBreakerHandSpritesEnabled();
+}
+
+function syncDebugScoreSliderFromRef() {
+  const slider = /** @type {HTMLInputElement|null} */ (document.getElementById("debug-detection-score"));
+  const out = document.getElementById("debug-detection-score-value");
+  const pct = Math.round(debugScoreThresholdRef.value * 100);
+  if (slider) {
+    slider.value = String(pct);
+    slider.setAttribute("aria-valuenow", String(pct));
+  }
+  if (out) out.textContent = debugScoreThresholdRef.value.toFixed(2);
 }
 
 /**
@@ -154,6 +212,13 @@ function runUiScreenSwap(toPhase, applyPhase) {
   }, 220);
 }
 
+function isLocalDebugAllowed() {
+  const p = window.location?.protocol || "";
+  const h = window.location?.hostname || "";
+  if (p === "file:") return true;
+  return h === "localhost" || h === "127.0.0.1";
+}
+
 /**
  * Configuração do Quick Play (best-of).
  */
@@ -179,6 +244,14 @@ function enterGameSelect() {
       ensureGameCarousel();
     });
   });
+}
+
+/**
+ * Tela de Ranking (single-player): lista de minigames + detalhe com Top 10.
+ */
+function enterRanking() {
+  enterRankingScreen();
+  setPhase("ranking");
 }
 
 function getQuickPlayBestOfFromUI() {
@@ -284,10 +357,22 @@ function carouselSelectIndex(nextIndex) {
   if (!gameCarousel?.items?.length) return;
   const n = gameCarousel.items.length;
   const i = ((nextIndex % n) + n) % n;
+  const prevIndex = gameCarousel.index;
   gameCarousel.index = i;
   const btn = gameCarousel.items[i];
   selectedGameId = String(btn.getAttribute("data-game-id") || selectedGameId);
   carouselUpdateLayout();
+
+  // Feedback visual no item recém-selecionado (classe temporária para animar no CSS).
+  if (prevIndex !== i) {
+    const prevBtn = gameCarousel.items[prevIndex];
+    if (prevBtn) prevBtn.classList.remove("is-just-selected");
+    btn.classList.remove("is-just-selected");
+    requestAnimationFrame(() => {
+      btn.classList.add("is-just-selected");
+      window.setTimeout(() => btn.classList.remove("is-just-selected"), 320);
+    });
+  }
 }
 
 function ensureGameCarousel() {
@@ -313,8 +398,15 @@ function showResultsPanelText(title, body) {
   const titleEl = document.getElementById("results-title");
   const bodyEl = document.getElementById("results-body");
   const panel = document.getElementById("panel-results");
+  const newRecord = document.getElementById("panel-results-new-record");
+  const actions = panel?.querySelector(".panel-results__actions");
   if (titleEl) titleEl.textContent = title;
-  if (bodyEl) bodyEl.textContent = body;
+  if (bodyEl) {
+    bodyEl.textContent = body;
+    bodyEl.hidden = false;
+  }
+  if (newRecord) newRecord.hidden = true;
+  if (actions instanceof HTMLElement) actions.hidden = false;
   if (panel) panel.hidden = false;
   setGlobalFullscreenLocked(false);
 
@@ -468,12 +560,61 @@ function formatResultsText(result) {
   return lines.join("\n");
 }
 
+/**
+ * Candidato de novo recorde pendente (aguardando input do nome no painel de resultados).
+ * Preenchido em `handleGameFinish` quando um resultado single-player qualifica para o Top 10.
+ * @type {{ gameId: "blockBreaker"|"cleanScreen"|"collect", score: number, timeSec: number }|null}
+ */
+let pendingHighScore = null;
+
+/**
+ * @param {"blockBreaker"|"cleanScreen"|"collect"} gameId
+ * @param {number} score
+ * @param {number} timeSec
+ */
+function formatNewRecordSummary(gameId, score, timeSec) {
+  if (gameId === "blockBreaker") {
+    return `${score} pontos • ${timeSec.toFixed(2)} s`;
+  }
+  return `${score} pontos`;
+}
+
 function showResultsPanel(result) {
   const resultsBody = document.getElementById("results-body");
   const resultsTitle = document.getElementById("results-title");
   const panelResults = document.getElementById("panel-results");
+  const newRecord = document.getElementById("panel-results-new-record");
+  const newRecordSummary = document.getElementById("panel-results-new-record-summary");
+  const nameInput = /** @type {HTMLInputElement|null} */ (
+    document.getElementById("input-record-name")
+  );
+  const actions = panelResults?.querySelector(".panel-results__actions");
   if (resultsTitle) resultsTitle.textContent = "Resultado";
   if (resultsBody) resultsBody.textContent = formatResultsText(result);
+
+  const showRecord = pendingHighScore !== null;
+  if (newRecord) newRecord.hidden = !showRecord;
+  if (resultsBody) resultsBody.hidden = showRecord;
+  if (actions instanceof HTMLElement) actions.hidden = showRecord;
+
+  if (showRecord && pendingHighScore && newRecordSummary) {
+    newRecordSummary.textContent = formatNewRecordSummary(
+      pendingHighScore.gameId,
+      pendingHighScore.score,
+      pendingHighScore.timeSec,
+    );
+  }
+  if (showRecord && nameInput) {
+    nameInput.value = "";
+    requestAnimationFrame(() => {
+      try {
+        nameInput.focus();
+      } catch {
+        /* ignore */
+      }
+    });
+  }
+
   if (panelResults) panelResults.hidden = false;
   setGlobalFullscreenLocked(false);
 
@@ -486,7 +627,12 @@ function showResultsPanel(result) {
 /** Confetes + título + coroa; depois o painel de resultados. */
 function handleGameFinish(result) {
   const videoEl = video ?? document.getElementById("camera");
+  pendingHighScore = null;
   if (!quickPlay.active) {
+    const candidate = extractCandidateFromResult(result);
+    if (candidate && qualifiesForTop(candidate.gameId, candidate)) {
+      pendingHighScore = candidate;
+    }
     void runVictorySequence({
       video: videoEl,
       result,
@@ -566,6 +712,9 @@ function handleGameFinish(result) {
 function hideResultsPanel() {
   const panelResults = document.getElementById("panel-results");
   if (panelResults) panelResults.hidden = true;
+  const newRecord = document.getElementById("panel-results-new-record");
+  if (newRecord) newRecord.hidden = true;
+  pendingHighScore = null;
 }
 
 /** Texto fixo no painel de calibração antes da deteção estável. */
@@ -573,8 +722,22 @@ const DETECTION_STATUS_BASE =
   "Mostre as mãos para detetar.";
 
 function stopCameraSession() {
+  hideDebugDetectionPanel();
+  document.getElementById("screen-detection")?.classList.remove("screen-detection--debug");
+  if (debugCameraFitUnbind) {
+    debugCameraFitUnbind();
+    debugCameraFitUnbind = null;
+  }
   stopInferenceLoop();
   clearPoseCache();
+  if (debugDetection) {
+    try {
+      debugDetection.stop();
+    } catch {
+      /* ignore */
+    }
+    debugDetection = null;
+  }
   const videoEl = /** @type {HTMLVideoElement|null} */ (document.getElementById("camera"));
   if (!videoEl) {
     cameraAvailable = false;
@@ -607,10 +770,27 @@ function enterReadyArena(mode) {
   const camLoadingText = screenDetection?.querySelector?.("[data-camera-loading-text]");
   if (!videoEl || !overlayDetection) return;
 
+  detectionReturnPhase = "game-select";
+  hideDebugDetectionPanel();
+  screenDetection?.classList.remove("screen-detection--debug");
+  if (debugCameraFitUnbind) {
+    debugCameraFitUnbind();
+    debugCameraFitUnbind = null;
+  }
+
   gameMode = mode;
   screenDetection?.classList.remove("screen-detection--countdown-ui-hidden");
   moveVideoToCalibration();
   setPhase("detection");
+
+  if (debugDetection) {
+    try {
+      debugDetection.stop();
+    } catch {
+      /* ignore */
+    }
+    debugDetection = null;
+  }
 
   if (readyArena) {
     try {
@@ -762,6 +942,81 @@ function enterReadyArena(mode) {
 
   // Desktop/ambiente sem necessidade de gesto: solicita ao entrar na calibração.
   void startCameraAndArena();
+}
+
+/**
+ * Debug de pose: abre a tela de deteção e desenha skeleton + labels.
+ * Não dispara contagem nem inicia jogo automaticamente.
+ */
+function enterDebugDetection() {
+  const videoEl = document.getElementById("camera");
+  const overlayDetection = /** @type {HTMLCanvasElement|null} */ (
+    document.getElementById("overlay-detection")
+  );
+  const screenDetection = document.getElementById("screen-detection");
+  if (!videoEl || !overlayDetection) return;
+
+  detectionReturnPhase = "home";
+  debugScoreThresholdRef.value = 0.25;
+  showDebugDetectionPanel();
+  syncDebugScoreSliderFromRef();
+  syncBlockBreakerHandSpritesCheckbox();
+
+  screenDetection?.classList.remove("screen-detection--countdown-ui-hidden");
+  screenDetection?.classList.add("screen-detection--debug");
+  moveVideoToCalibration();
+  setPhase("detection");
+
+  if (debugCameraFitUnbind) {
+    debugCameraFitUnbind();
+    debugCameraFitUnbind = null;
+  }
+
+  if (readyArena) {
+    try {
+      readyArena.stop();
+    } catch {
+      /* ignore */
+    }
+    readyArena = null;
+  }
+  readyCountdownLock = false;
+
+  if (debugDetection) {
+    try {
+      debugDetection.stop();
+    } catch {
+      /* ignore */
+    }
+    debugDetection = null;
+  }
+
+  debugDetection = createDetectionScreen({
+    video: videoEl,
+    overlayCanvas: overlayDetection,
+    gameMode: "multi",
+    debugMode: true,
+    showKeypointLabels: true,
+    getMinScore: () => debugScoreThresholdRef.value,
+  });
+
+  debugCameraFitUnbind = bindDetectionCameraFitControls(videoEl);
+
+  async function startCameraAndDebug() {
+    if (!isCameraContextOk()) return;
+    try {
+      if (!videoEl.srcObject) {
+        await setupCamera(videoEl);
+      }
+      void videoEl.play?.().catch(() => {});
+      startInferenceLoop(videoEl);
+      debugDetection?.start();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  void startCameraAndDebug();
 }
 
 /**
@@ -1065,6 +1320,38 @@ function wireEvents() {
     runUiScreenSwap("game-select", () => enterGameSelect());
   });
 
+  document.getElementById("btn-home-debug")?.addEventListener("click", () => {
+    if (!isLocalDebugAllowed()) return;
+    enterDebugDetection();
+  });
+
+  document.getElementById("btn-home-ranking")?.addEventListener("click", () => {
+    runUiScreenSwap("ranking", () => enterRanking());
+  });
+
+  wireRankingScreen({
+    onBackFromList: () => {
+      runUiScreenSwap("home", () => setPhase("home"));
+    },
+  });
+
+  const debugScoreSlider = /** @type {HTMLInputElement|null} */ (
+    document.getElementById("debug-detection-score")
+  );
+  debugScoreSlider?.addEventListener("input", () => {
+    const raw = Number.parseInt(debugScoreSlider.value, 10);
+    const pct = Number.isFinite(raw) ? raw : 0;
+    debugScoreThresholdRef.value = Math.max(0, Math.min(1, pct / 100));
+    debugScoreSlider.setAttribute("aria-valuenow", String(pct));
+    const out = document.getElementById("debug-detection-score-value");
+    if (out) out.textContent = debugScoreThresholdRef.value.toFixed(2);
+  });
+
+  document.getElementById("debug-blockbreaker-hand-sprites")?.addEventListener("change", (e) => {
+    const t = /** @type {HTMLInputElement|null} */ (e.target);
+    if (t) setBlockBreakerHandSpritesEnabled(t.checked);
+  });
+
   document.getElementById("btn-mode-select-back")?.addEventListener("click", () => {
     runUiScreenSwap("home", () => setPhase("home"));
   });
@@ -1141,7 +1428,12 @@ function wireEvents() {
     if (!gameCarousel?.items?.length) ensureGameCarousel();
     if (!gameCarousel) return;
     const idx = gameCarousel.items.indexOf(el);
-    if (idx >= 0) carouselSelectIndex(idx);
+    if (idx >= 0) {
+      carouselSelectIndex(idx);
+      if (window.matchMedia("(max-width: 720px)").matches) {
+        runScreenTransition(() => enterReadyArena(gameMode));
+      }
+    }
   });
 
   btnConfirm?.addEventListener("click", () => {
@@ -1227,12 +1519,50 @@ function wireEvents() {
       readyArena = null;
     }
     readyCountdownLock = false;
+    const backTarget = detectionReturnPhase;
+    detectionReturnPhase = "game-select";
     stopCameraSession();
-    setPhase("game-select");
+    setPhase(backTarget);
+  });
+
+  const btnRecordSave = document.getElementById("btn-record-save");
+  const inputRecordName = /** @type {HTMLInputElement|null} */ (
+    document.getElementById("input-record-name")
+  );
+
+  function commitPendingHighScore() {
+    if (!pendingHighScore) return;
+    const rawName = inputRecordName?.value ?? "";
+    const name = sanitizeName(rawName);
+    saveScore(pendingHighScore.gameId, {
+      name,
+      score: pendingHighScore.score,
+      timeSec: pendingHighScore.timeSec,
+    });
+    pendingHighScore = null;
+    const newRecord = document.getElementById("panel-results-new-record");
+    const bodyEl = document.getElementById("results-body");
+    const panel = document.getElementById("panel-results");
+    const actions = panel?.querySelector(".panel-results__actions");
+    if (newRecord) newRecord.hidden = true;
+    if (bodyEl) bodyEl.hidden = false;
+    if (actions instanceof HTMLElement) actions.hidden = false;
+  }
+
+  btnRecordSave?.addEventListener("click", () => {
+    commitPendingHighScore();
+  });
+
+  inputRecordName?.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter") {
+      ev.preventDefault();
+      commitPendingHighScore();
+    }
   });
 
   btnResultsRestart?.addEventListener("click", async () => {
     if (!overlayCountdown) return;
+    if (pendingHighScore) commitPendingHighScore();
     hideResultsPanel();
     setGlobalFullscreenLocked(true);
     if (currentGame) {
@@ -1247,6 +1577,7 @@ function wireEvents() {
   });
 
   btnResultsHome?.addEventListener("click", () => {
+    if (pendingHighScore) commitPendingHighScore();
     if (currentGame) {
       currentGame.stop();
       currentGame = null;

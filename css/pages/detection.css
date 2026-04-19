@@ -12,27 +12,96 @@
 
 /** Durante 3–2–1: só vídeo + overlay de pose; painel e Voltar ocultos. */
 .screen-detection.screen-detection--countdown-ui-hidden .detection-panel-anchor,
-.screen-detection.screen-detection--countdown-ui-hidden .detection-top-anchor,
+.screen-detection.screen-detection--countdown-ui-hidden #detection-controls-panel,
 .screen-detection.screen-detection--countdown-ui-hidden #btn-detection-back {
   display: none !important;
 }
 
-/* Painel superior: seletor de visualização */
-.detection-top-anchor {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  z-index: 9;
-  display: flex;
-  justify-content: center;
-  padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 0;
-  pointer-events: none;
+/** Painel fixo (visualização + opções de debug): canto superior direito. */
+.detection-controls-panel {
+  pointer-events: auto;
+  text-align: left;
+  padding: 12px 14px 14px;
 }
 
-.detection-top-stack {
-  width: 100%;
-  max-width: min(380px, 100%);
+.detection-controls-panel__fit {
+  margin: 0;
+}
+
+.debug-detection-extra {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 2px solid rgba(47, 41, 65, 0.2);
+}
+
+.debug-detection-extra__field {
+  margin-top: 10px;
+}
+
+.debug-detection-checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--game-text);
+  cursor: pointer;
+  line-height: 1.35;
+}
+
+.debug-detection-checkbox {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: #34d399;
+  cursor: pointer;
+}
+
+/** Modo debug: sem painel inferior (status / permitir câmera). */
+.screen-detection.screen-detection--debug .detection-panel-anchor {
+  display: none !important;
+}
+
+.debug-detection-panel--dock {
+  position: fixed;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  right: calc(12px + env(safe-area-inset-right, 0px));
+  left: auto;
+  z-index: 11;
+  width: min(300px, calc(100vw - 24px));
+  max-width: none;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.debug-detection-panel__label {
+  display: block;
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--game-text);
+}
+
+.debug-detection-panel__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.debug-detection-panel__range {
+  flex: 1;
+  min-width: 0;
+  accent-color: #34d399;
+}
+
+.debug-detection-panel__value {
+  flex: 0 0 auto;
+  min-width: 2.75rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: var(--game-text);
 }
 
 .detection-panel--top {
@@ -149,6 +218,18 @@
   justify-content: center;
   flex-wrap: wrap;
   margin: 0;
+}
+
+.camera-fit-toggle--panel {
+  flex-direction: column;
+  width: 100%;
+  align-items: stretch;
+}
+
+.camera-fit-toggle--panel .camera-fit-toggle__btn {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: none;
 }
 
 .camera-fit-toggle__btn {
