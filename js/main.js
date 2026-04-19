@@ -26,6 +26,8 @@ import { runEndCountdown, runStartCountdown } from "./ui/countdown.js";
 import { runVictorySequence } from "./ui/victorySequence.js";
 import {
   extractCandidateFromResult,
+  getTopScores,
+  isSupportedGameId,
   qualifiesForTop,
   saveScore,
   sanitizeName,
@@ -524,6 +526,21 @@ function runScreenTransition(onMidTransition) {
  * @param {number} [result.scoreTotal]
  * @param {"single"|"multi"} [result.mode]
  */
+/**
+ * @param {"blockBreaker"|"cleanScreen"|"collect"} gameId
+ */
+function formatBestRankingLine(gameId) {
+  const list = getTopScores(gameId);
+  if (!list.length) {
+    return "Melhor no ranking: ainda sem registros salvos.";
+  }
+  const e = list[0];
+  if (gameId === "blockBreaker") {
+    return `Melhor no ranking: ${e.name} — ${e.score} pts • ${e.timeSec.toFixed(2)} s`;
+  }
+  return `Melhor no ranking: ${e.name} — ${e.score} pts`;
+}
+
 function formatResultsText(result) {
   const mode = result.mode;
   const lines = [];
@@ -547,16 +564,23 @@ function formatResultsText(result) {
       lines.push(`P1: ${s1}`);
       lines.push(`P2: ${s2}`);
     }
-    return lines.join("\n");
+  } else {
+    const t1 = Number.isFinite(result.timeP1) ? result.timeP1 : 0;
+    const t2 = Number.isFinite(result.timeP2) ? result.timeP2 : 0;
+    if (mode === "single") {
+      lines.push(`Tempo: ${t1.toFixed(2)} s`);
+    } else {
+      lines.push(`P1: ${t1.toFixed(2)} s`);
+      lines.push(`P2: ${t2.toFixed(2)} s`);
+    }
   }
 
-  const t1 = Number.isFinite(result.timeP1) ? result.timeP1 : 0;
-  const t2 = Number.isFinite(result.timeP2) ? result.timeP2 : 0;
-  if (mode === "single") {
-    return `Tempo: ${t1.toFixed(2)} s`;
+  const gid = result.gameId;
+  if (typeof gid === "string" && isSupportedGameId(gid)) {
+    lines.push("");
+    lines.push(formatBestRankingLine(gid));
   }
-  lines.push(`P1: ${t1.toFixed(2)} s`);
-  lines.push(`P2: ${t2.toFixed(2)} s`);
+
   return lines.join("\n");
 }
 

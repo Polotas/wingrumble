@@ -40,11 +40,45 @@ const WRIST_SAMPLE_MIN_MS = 52;
 const SPEED_HIT_MIN_RATIO = 0.72;
 const SPEED_DMG_2_RATIO = 1.15;
 const SPEED_DMG_3_RATIO = 1.65;
-const GRAVITY_PX = 2600;
+/** Gravidade um pouco mais baixa = queda mais “flutuante”, estilo gelatina. */
+const GRAVITY_PX = 2380;
 const FLOOR_PAD = 20;
-const HIT_IMPULSE_Y = -420;
+const HIT_IMPULSE_Y = -455;
 const HIT_FLASH_MS = 280;
-const POINTS_PER_HIT = 5;
+/** Valor base de cada bloco ao destruir, no início da partida. */
+const BLOCK_BASE_VALUE = 20;
+/** Piso do decay do valor do bloco. */
+const BLOCK_MIN_VALUE = 5;
+/** Duração do lerp linear de `BLOCK_BASE_VALUE` → `BLOCK_MIN_VALUE` (ms). */
+const BLOCK_DECAY_DURATION_MS = 60000;
+/** Após este tempo sem destruir nada, o combo do jogador reseta. */
+const COMBO_IDLE_RESET_MS = 4000;
+/** Bônus ao limpar uma cor tendo tocado na outra. */
+const COLOR_CLEAR_BONUS = 10;
+/** Bônus ao limpar uma cor sem ter destruído nenhum bloco da outra. */
+const COLOR_PERFECT_BONUS = 50;
+/** Tempo de shake do "game juice" do bônus perfeito. */
+const PERFECT_SHAKE_MS = 420;
+/** Parte em slow-mo fixo do bônus perfeito. */
+const PERFECT_SLOWMO_HOLD_MS = 260;
+/** Interpolação do slow-mo de volta a 1× depois do hold. */
+const PERFECT_SLOWMO_RAMP_MS = 240;
+/** Duração do flash branco no bônus perfeito. */
+const PERFECT_FLASH_MS = 320;
+/** Duração do banner "COR PERFEITA!". */
+const PERFECT_BANNER_MS = 1400;
+/** Duração do anel em expansão do bônus perfeito. */
+const PERFECT_RING_MS = 520;
+/** Duração total da sequência de vitória/fim (antes de chamar `onFinish`). */
+const END_SEQUENCE_MS = 2200;
+/** Slow-mo inicial da sequência de vitória. */
+const END_SLOWMO_HOLD_MS = 520;
+/** Rampa de volta ao tempo normal após o slow-mo da sequência de fim. */
+const END_SLOWMO_RAMP_MS = 420;
+/** Shake inicial da sequência de vitória. */
+const END_SHAKE_MS = 780;
+/** Flash inicial da sequência de vitória. */
+const END_FLASH_MS = 420;
 /** Fração da altura do sprite acima do pivô do punho (alinhado a drawHandSprites). */
 const HAND_SPRITE_ANCHOR_Y = 0.52;
 /** Escala linear das caixas face ao encaixe compacto na grelha (2 ≈ o dobro do tamanho anterior). */
@@ -61,9 +95,35 @@ const BLOCK_TINTS = [
   { name: "Roxo", color: "#a855f7" },
 ];
 
+/**
+ * Par de cores por jogador (single usa apenas o índice 0).
+ * P1 = Azul + Verde; P2 = Vermelho + Amarelo.
+ * @type {readonly [readonly [string, string], readonly [string, string]]}
+ */
+const PLAYER_COLOR_PAIRS = [
+  ["#3b82f6", "#22c55e"],
+  ["#ef4444", "#facc15"],
+];
+
 function pickRandomTintColor() {
   const i = Math.floor(Math.random() * BLOCK_TINTS.length);
   return BLOCK_TINTS[i]?.color || "#94a3b8";
+}
+
+/**
+ * Embaralha in-place (Fisher–Yates). Retorna o próprio array.
+ * @template T
+ * @param {T[]} arr
+ * @returns {T[]}
+ */
+function shuffleArray(arr) {
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = arr[i];
+    arr[i] = arr[j];
+    arr[j] = tmp;
+  }
+  return arr;
 }
 
 function randBetween(min, max) {
@@ -73,17 +133,28 @@ function randBetween(min, max) {
 const HAND_L_URL = new URL("../../../assets/minigame-break/hand_l.png", import.meta.url).href;
 const HAND_R_URL = new URL("../../../assets/minigame-break/hand_r.png", import.meta.url).href;
 
-const BOX_SPRITE_URLS = [
-  new URL("../../../assets/minigame-break/boxes/box-1/box-1.png", import.meta.url).href,
-  new URL("../../../assets/minigame-break/boxes/box-1/box-2.png", import.meta.url).href,
+/** Sprite único de "gelatina" usado para todas as caixas, independente do HP. */
+const GEL_SPRITE_URL = new URL("../../../assets/minigame-break/gel_image.png", import.meta.url).href;
+
+/** Dois sons de “gelatina” no hit; alternam a cada golpe. */
+const JELLY_HIT_AUDIO_URLS = [
+  new URL(
+    "../../../assets/audios/jelly_sound/freesound_community-jellybounce-45797.mp3",
+    import.meta.url,
+  ).href,
+  new URL(
+    "../../../assets/audios/jelly_sound/freesound_community-jelly-kick-85503.mp3",
+    import.meta.url,
+  ).href,
 ];
+let jellyHitSoundIndex = 0;
 
-const HIT_BOX_AUDIO_URL = new URL("../../../assets/audios/hit_box.mp3", import.meta.url).href;
-
-function playHitBoxSound() {
+function playJellyHitSound() {
   try {
-    const a = new Audio(HIT_BOX_AUDIO_URL);
-    a.volume = 0.55;
+    const href = JELLY_HIT_AUDIO_URLS[jellyHitSoundIndex % JELLY_HIT_AUDIO_URLS.length];
+    jellyHitSoundIndex += 1;
+    const a = new Audio(href);
+    a.volume = 0.62;
     void a.play().catch(() => {});
   } catch {
     /* ignore */
@@ -94,10 +165,10 @@ function playHitBoxSound() {
 let handSpriteL = null;
 /** @type {HTMLImageElement|null} */
 let handSpriteR = null;
-/** Índice 0 = intacta (>50% PV), 1 = danificada (≤50% PV). */
-/** @type {(HTMLImageElement|null)[]} */
-let boxSprites = [null, null];
-/** altura/largura do sprite da caixa (atualizado ao carregar PNG). */
+/** Sprite único da "gelatina" (substitui os 2 sprites por nível de dano). */
+/** @type {HTMLImageElement|null} */
+let gelSprite = null;
+/** altura/largura do sprite da gelatina (atualizado ao carregar PNG). */
 let boxSpriteAspectRatio = 1;
 
 (function preloadHandSprites() {
@@ -113,33 +184,22 @@ let boxSpriteAspectRatio = 1;
   r.src = HAND_R_URL;
 })();
 
-(function preloadBoxSprites() {
-  BOX_SPRITE_URLS.forEach((href, i) => {
-    const img = new Image();
-    img.onload = () => {
-      boxSprites[i] = img;
-      if (img.naturalWidth > 0) {
-        const ar = img.naturalHeight / img.naturalWidth;
-        if (ar > 0.15 && ar < 6) boxSpriteAspectRatio = ar;
-      }
-    };
-    img.src = href;
-  });
+(function preloadGelSprite() {
+  const img = new Image();
+  img.onload = () => {
+    gelSprite = img;
+    if (img.naturalWidth > 0) {
+      const ar = img.naturalHeight / img.naturalWidth;
+      if (ar > 0.15 && ar < 6) boxSpriteAspectRatio = ar;
+    }
+  };
+  img.src = GEL_SPRITE_URL;
 })();
 
-/**
- * @param {number} hp
- * @param {number} maxHp
- * @returns {0|1}
- */
-function boxSpriteIndexForHp(hp, maxHp) {
-  const r = maxHp > 0 ? hp / maxHp : 0;
-  return r > 0.5 ? 0 : 1;
-}
-
 function getBoxSpriteAspectRatio() {
-  const sample = boxSprites.find((s) => s && s.complete && s.naturalWidth > 0);
-  if (sample) return sample.naturalHeight / sample.naturalWidth;
+  if (gelSprite && gelSprite.complete && gelSprite.naturalWidth > 0) {
+    return gelSprite.naturalHeight / gelSprite.naturalWidth;
+  }
   if (boxSpriteAspectRatio > 0.15 && boxSpriteAspectRatio < 6) return boxSpriteAspectRatio;
   return 1;
 }
@@ -243,15 +303,76 @@ export function createBlockBreakerGame(canvas, options = {}) {
   /** Último instante em que este punho acertou (cooldown). */
   const wristLastHitMs = new Map();
 
-  /** @type {{ x: number; y: number; text: string; color: string; startMs: number; duration: number }[]} */
+  /** @type {{ x: number; y: number; text: string; color: string; startMs: number; duration: number; big?: boolean }[]} */
   let hitPopups = [];
   /** `performance.now()` até quando aplica shake leve (tier 3). */
   let screenShakeUntil = 0;
   /**
    * Pedaços ao destruir a caixa (partículas geométricas).
-   * @type {{ x: number; y: number; vx: number; vy: number; rot: number; vr: number; size: number; color: string; startMs: number; duration: number }[]}
+   * @type {{ x: number; y: number; vx: number; vy: number; rot: number; vr: number; size: number; color: string; startMs: number; duration: number; shape?: "tri"|"rect"|"square" }[]}
    */
   let debris = [];
+
+  // Estado de pontuação/combo ---------------------------------------------
+  /** Instante em que o dano aos blocos foi ativado (1º bloco a tocar no chão). */
+  let gameStartMs = 0;
+  /** Cor do último bloco destruído por jogador ("null" = combo resetado). */
+  /** @type {(string|null)[]} */
+  let comboColor = [null, null];
+  /** Multiplicador atual do combo por jogador (1 quando inativo). */
+  let comboMult = [1, 1];
+  /** Instante da última destruição por jogador (para reset por inatividade). */
+  let comboLastDestroyMs = [0, 0];
+  /** Contagem de blocos destruídos por cor, por jogador. */
+  /** @type {Record<string, number>[]} */
+  let destroyedCountByColor = [
+    /** @type {Record<string, number>} */ ({}),
+    /** @type {Record<string, number>} */ ({}),
+  ];
+  /** Contagem fixa por cor após o layout, por jogador. */
+  /** @type {Record<string, number>[]} */
+  let totalByColor = [
+    /** @type {Record<string, number>} */ ({}),
+    /** @type {Record<string, number>} */ ({}),
+  ];
+  /** Cores já premiadas (evita dar bônus de cor limpa duas vezes). */
+  /** @type {Set<string>[]} */
+  let colorClearedAwarded = [new Set(), new Set()];
+
+  // Game juice -----------------------------------------------------------
+  /** Banner central "COR PERFEITA!" ativo. */
+  /** @type {{ startMs: number; color: string; label: string }|null} */
+  let perfectBanner = null;
+  /** Flash branco full-canvas. */
+  let flashStart = 0;
+  let flashUntil = 0;
+  /** Anel em expansão (bônus perfeito). */
+  /** @type {{ startMs: number; cx: number; cy: number; color: string }|null} */
+  let perfectRing = null;
+  /** Escala atual do tempo (1 = normal, <1 = slow-mo). */
+  let timeScale = 1;
+  /** Momento em que o slow-mo foi disparado. */
+  let slowmoStart = 0;
+  /** Se > 0, indica que há um slow-mo ativo. */
+  let slowmoActive = false;
+
+  // Sequência de fim de partida --------------------------------------------
+  /**
+   * Se diferente de null, a partida está no "rematch" visual antes de chamar `onFinish`:
+   * os blocos continuam em cena, dano fica desativado e um banner de vitória é exibido.
+   * @type {{
+   *   startMs: number;
+   *   duration: number;
+   *   label: string;
+   *   sublabel: string;
+   *   color: string;
+   *   result: import("./types.js")|any;
+   * }|null}
+   */
+  let endingSequence = null;
+  /** Slow-mo dedicado do ending (independente do +50 perfeito). */
+  let endingSlowmoActive = false;
+  let endingSlowmoStart = 0;
 
   function syncVideoContentRect() {
     const cw = canvas.width;
@@ -382,6 +503,23 @@ export function createBlockBreakerGame(canvas, options = {}) {
 
     hitPad = Math.max(10, Math.min(32, Math.min(bw, bh) * 0.11));
 
+    // Par determinístico de 2 cores para este jogador, com metade/metade e shuffle.
+    const pair = PLAYER_COLOR_PAIRS[owner] || PLAYER_COLOR_PAIRS[0];
+    const [colorA, colorB] = pair;
+    const half = Math.floor(n / 2);
+    /** @type {string[]} */
+    const tintBag = [];
+    for (let i = 0; i < half; i += 1) tintBag.push(colorA);
+    for (let i = 0; i < n - half; i += 1) tintBag.push(colorB);
+    shuffleArray(tintBag);
+
+    // Popular `totalByColor[owner]` com base nas cores atribuídas.
+    const ownerIdx = owner === 1 ? 1 : 0;
+    totalByColor[ownerIdx] = {};
+    for (const c of tintBag) {
+      totalByColor[ownerIdx][c] = (totalByColor[ownerIdx][c] ?? 0) + 1;
+    }
+
     for (let i = 0; i < n; i += 1) {
       const col = i % cols;
       const row = Math.floor(i / cols);
@@ -403,7 +541,7 @@ export function createBlockBreakerGame(canvas, options = {}) {
         hitFlashUntil: 0,
         hitShakeUntil: 0,
         owner,
-        tint: pickRandomTintColor(),
+        tint: tintBag[i],
         renderScaleX: scaleX,
         renderScaleY: scaleY,
         renderRot: rot,
@@ -411,6 +549,8 @@ export function createBlockBreakerGame(canvas, options = {}) {
         wobbleAmp: 0,
         squashX: 1,
         squashY: 1,
+        squashVelX: 0,
+        squashVelY: 0,
         lastHitMs: 0,
       });
     }
@@ -532,8 +672,8 @@ export function createBlockBreakerGame(canvas, options = {}) {
         a.x += push;
         b.x -= push;
       }
-      a.vx *= 0.75;
-      b.vx *= 0.75;
+      a.vx *= 0.88;
+      b.vx *= 0.88;
     }
   }
 
@@ -556,15 +696,20 @@ export function createBlockBreakerGame(canvas, options = {}) {
       b.x += b.vx * dt;
       b.y += b.vy * dt;
       b.vx *= Math.max(0, 1 - 2.2 * dt);
-      // Damping visual (gelatina) — só para render; colisão continua AABB.
+      // Damping visual (gelatina) — decay lento para o balanço durar mais.
       if (typeof b.wobbleAmp === "number") {
-        b.wobbleAmp *= Math.max(0, 1 - 3.8 * dt);
+        b.wobbleAmp *= Math.max(0, 1 - 1.1 * dt);
       }
+      // Spring mais rígido + menos amortecimento = mais “borracha” e overshoot.
       if (typeof b.squashX === "number") {
-        b.squashX += (1 - b.squashX) * Math.min(1, 7.5 * dt);
+        b.squashVelX = (b.squashVelX || 0) + (1 - b.squashX) * 118 * dt;
+        b.squashVelX *= Math.max(0, 1 - 3.35 * dt);
+        b.squashX += b.squashVelX * dt;
       }
       if (typeof b.squashY === "number") {
-        b.squashY += (1 - b.squashY) * Math.min(1, 7.5 * dt);
+        b.squashVelY = (b.squashVelY || 0) + (1 - b.squashY) * 118 * dt;
+        b.squashVelY *= Math.max(0, 1 - 3.35 * dt);
+        b.squashY += b.squashVelY * dt;
       }
     }
 
@@ -583,13 +728,23 @@ export function createBlockBreakerGame(canvas, options = {}) {
       if (b.destroyed) continue;
       if (b.y + b.h > floorY) {
         b.y = floorY - b.h;
-        if (b.vy > 80) {
-          b.vy *= -0.12;
-          b.wobbleAmp = Math.min(4.5, (b.wobbleAmp || 0) + 0.9);
-          b.squashX = Math.max(b.squashX || 1, 1.08);
-          b.squashY = Math.min(b.squashY || 1, 0.92);
+        if (b.vy > 32) {
+          // Gelatina: bounce alto + leve deslize lateral ao aterrar.
+          const speed = b.vy;
+          b.vy = -speed * 0.58;
+          b.vx += (Math.random() - 0.5) * 175;
+          b.wobbleAmp = Math.min(9.5, (b.wobbleAmp || 0) + 1.15 + speed * 0.0025);
+          b.squashX = Math.max(b.squashX || 1, 1.34);
+          b.squashY = Math.min(b.squashY || 1, 0.66);
+          b.squashVelX = (b.squashVelX || 0) + (Math.random() - 0.5) * 3.8;
+          b.squashVelY = (b.squashVelY || 0) - 3.1;
+        } else if (b.vy > 10) {
+          // Micro-quiques antes de assentar (efeito pudim).
+          b.vy = -b.vy * 0.32;
+          b.wobbleAmp = Math.min(9.5, (b.wobbleAmp || 0) + 0.35);
+        } else {
+          b.vy = 0;
         }
-        else b.vy = 0;
       }
     }
 
@@ -610,6 +765,7 @@ export function createBlockBreakerGame(canvas, options = {}) {
         if (b.destroyed) continue;
         if (b.y + b.h >= floorY - 1.5) {
           blockDamageEnabled = true;
+          if (gameStartMs <= 0) gameStartMs = performance.now();
           break;
         }
       }
@@ -655,11 +811,204 @@ export function createBlockBreakerGame(canvas, options = {}) {
     return pts;
   }
 
+  /**
+   * Valor atual de um bloco destruído (decai linearmente até o piso em 60 s).
+   * @param {number} nowMs
+   */
+  function currentBlockValue(nowMs) {
+    if (gameStartMs <= 0) return BLOCK_BASE_VALUE;
+    const elapsed = Math.max(0, nowMs - gameStartMs);
+    const t = Math.min(1, elapsed / BLOCK_DECAY_DURATION_MS);
+    return BLOCK_BASE_VALUE + (BLOCK_MIN_VALUE - BLOCK_BASE_VALUE) * t;
+  }
+
+  /**
+   * Cor "parceira" do par do jogador `pi`. Retorna null se o par não tiver 2 cores.
+   * @param {number} pi
+   * @param {string} color
+   */
+  function partnerColorOf(pi, color) {
+    const pair = PLAYER_COLOR_PAIRS[pi] || PLAYER_COLOR_PAIRS[0];
+    if (pair[0] === color) return pair[1];
+    if (pair[1] === color) return pair[0];
+    return null;
+  }
+
+  /**
+   * Popup grande para pontuação/combo acima do bloco destruído.
+   * @param {{ x: number; y: number; w: number; h: number }} b
+   * @param {number} gained
+   * @param {number} mult
+   * @param {string} comboCol
+   * @param {number} nowMs
+   */
+  function pushScorePopup(b, gained, mult, comboCol, nowMs) {
+    hitPopups.push({
+      x: b.x + b.w / 2,
+      y: b.y + b.h * 0.18,
+      text: `+${gained}`,
+      color: "#fef3c7",
+      startMs: nowMs,
+      duration: HIT_POPUP_MS + 180,
+      big: true,
+    });
+    if (mult >= 2) {
+      hitPopups.push({
+        x: b.x + b.w / 2,
+        y: b.y - b.h * 0.08,
+        text: `${mult}x COMBO!`,
+        color: comboCol || "#fde68a",
+        startMs: nowMs + 40,
+        duration: HIT_POPUP_MS + 320,
+        big: true,
+      });
+    }
+  }
+
+  /**
+   * Popup leve para `+10 COR!` quando a cor foi limpa mas não houve "perfeita".
+   * @param {number} pi
+   * @param {{ x: number; y: number; w: number; h: number; tint: string }} b
+   * @param {number} nowMs
+   */
+  function triggerColorClearPopup(pi, b, nowMs) {
+    hitPopups.push({
+      x: b.x + b.w / 2,
+      y: b.y - b.h * 0.35,
+      text: `+${COLOR_CLEAR_BONUS} COR!`,
+      color: b.tint || "#a7f3d0",
+      startMs: nowMs,
+      duration: HIT_POPUP_MS + 400,
+      big: true,
+    });
+  }
+
+  /**
+   * Spawna confete colorido (partículas) para o bônus perfeito.
+   * @param {number} cx
+   * @param {number} cy
+   * @param {string[]} colors
+   * @param {number} n
+   * @param {number} nowMs
+   */
+  function spawnConfetti(cx, cy, colors, n, nowMs) {
+    const base = Math.max(7, Math.min(16, Math.min(canvas.width, canvas.height) * 0.01));
+    for (let i = 0; i < n; i += 1) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = 5 + Math.random() * 7;
+      const col = colors[i % colors.length];
+      debris.push({
+        x: cx + (Math.random() - 0.5) * base,
+        y: cy + (Math.random() - 0.5) * base,
+        vx: Math.cos(a) * sp * 95,
+        vy: (Math.sin(a) * sp - 2.2) * 95,
+        rot: Math.random() * Math.PI * 2,
+        vr: (Math.random() - 0.5) * 0.6,
+        size: base * (0.9 + Math.random() * 0.8),
+        color: col,
+        startMs: nowMs,
+        duration: DEBRIS_MS * (1.2 + Math.random() * 0.6),
+        shape: "rect",
+      });
+    }
+  }
+
+  /**
+   * "Game juice" especial do bônus perfeito (+50): banner, slow-mo, flash, shake,
+   * anel expansivo e burst colorido de confete.
+   * @param {number} pi
+   * @param {{ x: number; y: number; w: number; h: number; tint: string }} b
+   * @param {number} nowMs
+   */
+  function triggerPerfectClearJuice(pi, b, nowMs) {
+    const pair = PLAYER_COLOR_PAIRS[pi] || PLAYER_COLOR_PAIRS[0];
+    perfectBanner = {
+      startMs: nowMs,
+      color: b.tint || pair[0] || "#fde68a",
+      label: `COR PERFEITA! +${COLOR_PERFECT_BONUS}`,
+    };
+    screenShakeUntil = Math.max(screenShakeUntil, nowMs + PERFECT_SHAKE_MS);
+    flashStart = nowMs;
+    flashUntil = nowMs + PERFECT_FLASH_MS;
+    perfectRing = {
+      startMs: nowMs,
+      cx: b.x + b.w / 2,
+      cy: b.y + b.h / 2,
+      color: b.tint || pair[0] || "#fde68a",
+    };
+    slowmoActive = true;
+    slowmoStart = nowMs;
+    spawnBoxDebris(b, nowMs, 3);
+    spawnBoxDebris(b, nowMs, 3);
+    spawnConfetti(b.x + b.w / 2, b.y + b.h / 2, [pair[0], pair[1]], 26, nowMs);
+    playPerfectSound();
+  }
+
+  /** Som do bônus perfeito: dois hits de gelatina em sequência (usa a alternância global). */
+  function playPerfectSound() {
+    try {
+      playJellyHitSound();
+      setTimeout(() => {
+        try {
+          playJellyHitSound();
+        } catch {
+          /* ignore */
+        }
+      }, 120);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  /**
+   * Aplica pontuação de destruição: combo por cor, bônus de cor limpa (+10 ou +50).
+   * @param {{ x: number; y: number; w: number; h: number; tint: string; owner: 0|1 }} b
+   * @param {number} pi
+   * @param {number} nowMs
+   */
+  function awardDestroyScore(b, pi, nowMs) {
+    const baseVal = currentBlockValue(nowMs);
+    const sameColor = comboColor[pi] === b.tint;
+    const idleOk = nowMs - comboLastDestroyMs[pi] <= COMBO_IDLE_RESET_MS;
+    const mult = sameColor && idleOk ? comboMult[pi] + 1 : 1;
+
+    comboColor[pi] = b.tint;
+    comboMult[pi] = mult;
+    comboLastDestroyMs[pi] = nowMs;
+
+    const gained = Math.max(1, Math.round(baseVal * mult));
+    scores[pi] += gained;
+    pushScorePopup(b, gained, mult, b.tint, nowMs);
+
+    // Tracking de cor limpa.
+    if (!destroyedCountByColor[pi]) destroyedCountByColor[pi] = {};
+    destroyedCountByColor[pi][b.tint] = (destroyedCountByColor[pi][b.tint] ?? 0) + 1;
+
+    const totalForThis = totalByColor[pi]?.[b.tint] ?? 0;
+    const countForThis = destroyedCountByColor[pi][b.tint];
+    if (
+      totalForThis > 0 &&
+      countForThis >= totalForThis &&
+      !colorClearedAwarded[pi].has(b.tint)
+    ) {
+      const other = partnerColorOf(pi, b.tint);
+      const touchedOther = other
+        ? (destroyedCountByColor[pi][other] ?? 0) > 0
+        : false;
+      const perfect = !touchedOther;
+      scores[pi] += perfect ? COLOR_PERFECT_BONUS : COLOR_CLEAR_BONUS;
+      colorClearedAwarded[pi].add(b.tint);
+      if (perfect) triggerPerfectClearJuice(pi, b, nowMs);
+      else triggerColorClearPopup(pi, b, nowMs);
+    }
+  }
+
   function tryDamageBlocks(nowMs) {
     if (finished || !video) return;
 
     const poses = getGamePoses();
     if (!blockDamageEnabled) return;
+    if (gameStartMs <= 0) gameStartMs = nowMs;
 
     const points = [];
     for (let i = 0; i < poses.length; i += 1) {
@@ -675,7 +1024,7 @@ export function createBlockBreakerGame(canvas, options = {}) {
         if (pointInBlock(x, y, b)) {
           const applied = Math.min(damage, b.hp);
           b.hp -= applied;
-          playHitBoxSound();
+          playJellyHitSound();
           b.lastDamagedMs = nowMs;
           b.hitFlashUntil = nowMs + HIT_FLASH_MS;
           b.hitShakeUntil = nowMs + 180;
@@ -683,15 +1032,17 @@ export function createBlockBreakerGame(canvas, options = {}) {
           b.vy += HIT_IMPULSE_Y * imp;
           b.vx += (Math.random() - 0.5) * 180;
           b.lastHitMs = nowMs;
-          b.wobbleAmp = Math.min(4.5, (b.wobbleAmp || 0) + 0.95 * damage);
-          b.squashX = 1 + 0.06 * damage;
-          b.squashY = 1 - 0.05 * damage;
+          b.wobbleAmp = Math.min(9.5, (b.wobbleAmp || 0) + 1.85 * damage);
+          b.squashX = 1 + 0.2 * damage;
+          b.squashY = 1 - 0.16 * damage;
+          b.squashVelX = (b.squashVelX || 0) + 3.4 * damage;
+          b.squashVelY = (b.squashVelY || 0) - 3.4 * damage;
+          const pi = pIdx === 1 ? 1 : 0;
           if (b.hp <= 0) {
             b.destroyed = true;
             spawnBoxDebris(b, nowMs, damage);
+            awardDestroyScore(b, pi, nowMs);
           }
-          const pi = pIdx === 1 ? 1 : 0;
-          scores[pi] += POINTS_PER_HIT * applied;
           wristLastHitMs.set(`${pIdx}-${side}`, nowMs);
           const fb = hitFeedbackForDamage(damage);
           hitPopups.push({
@@ -852,6 +1203,13 @@ export function createBlockBreakerGame(canvas, options = {}) {
     const v = videoContentRect;
     const baseW = Math.min(v.w, v.h) * 0.14;
 
+    // Isolar estado gráfico: evita que globalCompositeOperation/alpha/shadow
+    // remanescentes de outras camadas (banner, flash, blocos) "apaguem" os sprites.
+    ctx.save();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = "rgba(0,0,0,0)";
     for (let i = 0; i < poses.length; i += 1) {
       const kps = poses[i]?.keypoints;
       if (!kps) continue;
@@ -870,9 +1228,9 @@ export function createBlockBreakerGame(canvas, options = {}) {
         const q = resolveHandSpritePivot(p.x, p.y, w, h, nowMs);
         ctx.globalAlpha = dmg > 0 ? 1 : 0.72;
         ctx.drawImage(img, q.x - w / 2, q.y - h * HAND_SPRITE_ANCHOR_Y, w, h);
-        ctx.globalAlpha = 1;
       }
     }
+    ctx.restore();
   }
 
   function drawBlocks(nowMs) {
@@ -882,40 +1240,44 @@ export function createBlockBreakerGame(canvas, options = {}) {
       const { ox, oy } = hitShakeOffset(b, nowMs);
       const drawX = b.x + ox;
       const drawY = b.y + oy;
-      const si = boxSpriteIndexForHp(b.hp, b.maxHp);
-      const img = boxSprites[si];
+      const img = gelSprite;
       if (img && img.complete && img.naturalWidth >= 1) {
         const cx = drawX + b.w / 2;
         const cy = drawY + b.h / 2;
         const age = nowMs - (b.lastHitMs || 0);
-        const decay = age > 0 ? Math.exp(-age / 260) : 0;
-        const wob =
-          Math.sin(nowMs * 0.018 + (b.wobblePhase || 0)) *
-          (b.wobbleAmp || 0) *
-          decay *
-          0.06;
+        const decayPostHit = age > 0 ? Math.exp(-age / 560) : 0;
+        // Jiggle persistente de gelatina: duas senoides com fases distintas para balanço orgânico.
+        const bouncePhase = nowMs * 0.0068 + (b.wobblePhase || 0);
+        const idleJiggle = 0.028 * Math.sin(bouncePhase);
+        const idleJiggleY = 0.032 * Math.sin(bouncePhase * 1.35 + 0.7);
+        const hitBoost = (b.wobbleAmp || 0) * decayPostHit;
+        const wob = Math.sin(nowMs * 0.022 + (b.wobblePhase || 0)) * hitBoost * 0.24;
+        const wobY = Math.cos(nowMs * 0.026 + (b.wobblePhase || 0) + 0.9) * hitBoost * 0.21;
         const sxRaw =
           (b.renderScaleX || 1) *
-          (1 + wob + ((b.squashX || 1) - 1) * decay);
+          (1 + wob + idleJiggle + ((b.squashX || 1) - 1) * decayPostHit);
         const syRaw =
           (b.renderScaleY || 1) *
-          (1 - wob + ((b.squashY || 1) - 1) * decay);
-        const sx = Math.max(0.78, Math.min(1.28, sxRaw));
-        const sy = Math.max(0.78, Math.min(1.28, syRaw));
+          (1 - wobY - idleJiggleY + ((b.squashY || 1) - 1) * decayPostHit);
+        const sx = Math.max(0.48, Math.min(1.68, sxRaw));
+        const sy = Math.max(0.48, Math.min(1.68, syRaw));
         const rw = b.w * sx;
         const rh = b.h * sy;
+        // Leve skew horizontal (shear) para "empurrar" a gelatina quando balança.
+        const shear = Math.sin(bouncePhase * 0.9) * 0.055 + wob * 0.32;
         ctx.save();
         ctx.translate(cx, cy);
         ctx.rotate(b.renderRot || 0);
+        ctx.transform(1, 0, shear, 1, 0, 0);
         ctx.drawImage(img, -rw / 2, -rh / 2, rw, rh);
-        // Tint por caixa (sprites em tons cinza).
+        // Tint da gelatina (sprite em tons de cinza).
         ctx.globalCompositeOperation = "source-atop";
-        ctx.globalAlpha = 0.75;
+        ctx.globalAlpha = 0.72;
         ctx.fillStyle = b.tint || "#94a3b8";
         ctx.fillRect(-rw / 2, -rh / 2, rw, rh);
         // Preserva sombras/contraste do sprite
         ctx.globalCompositeOperation = "multiply";
-        ctx.globalAlpha = 0.35;
+        ctx.globalAlpha = 0.32;
         ctx.fillStyle = b.tint || "#94a3b8";
         ctx.fillRect(-rw / 2, -rh / 2, rw, rh);
         ctx.restore();
@@ -984,20 +1346,30 @@ export function createBlockBreakerGame(canvas, options = {}) {
   /** Pontuação dentro da área do vídeo (mesmo aspect ratio que a câmara). */
   function drawHitPopups(nowMs) {
     const basePx = Math.round(Math.min(26, Math.max(18, canvas.width * 0.028)));
+    const bigPx = Math.round(Math.min(46, Math.max(28, canvas.width * 0.044)));
     for (const p of hitPopups) {
       const age = nowMs - p.startMs;
+      if (age < 0) continue;
       const u = Math.min(1, age / p.duration);
       const alpha = 1 - u * u;
-      const rise = -52 * u;
-      const scale = 1 + 0.12 * Math.sin(u * Math.PI);
+      const rise = (p.big ? -72 : -52) * u;
+      const scale = p.big
+        ? 1 + 0.22 * Math.sin(u * Math.PI)
+        : 1 + 0.12 * Math.sin(u * Math.PI);
+      const sizePx = Math.round((p.big ? bigPx : basePx) * scale);
       ctx.save();
       ctx.globalAlpha = alpha;
-      ctx.font = `900 ${Math.round(basePx * scale)}px system-ui,sans-serif`;
+      ctx.font = `900 ${sizePx}px system-ui,sans-serif`;
       ctx.fillStyle = p.color;
       ctx.shadowColor = "rgba(0,0,0,0.55)";
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = p.big ? 14 : 10;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
+      if (p.big) {
+        ctx.strokeStyle = "rgba(0,0,0,0.75)";
+        ctx.lineWidth = 4;
+        ctx.strokeText(p.text, p.x, p.y + rise);
+      }
       ctx.fillText(p.text, p.x, p.y + rise);
       ctx.restore();
     }
@@ -1043,6 +1415,159 @@ export function createBlockBreakerGame(canvas, options = {}) {
       }
       ctx.restore();
     }
+  }
+
+  /** Flash branco full-canvas decaindo de 0.45 → 0. */
+  function drawFlashOverlay(nowMs) {
+    if (nowMs >= flashUntil) return;
+    const u = (nowMs - flashStart) / Math.max(1, flashUntil - flashStart);
+    const alpha = Math.max(0, 0.45 * (1 - u));
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+  }
+
+  /** Anel expansivo colorido centrado no último bloco (bônus perfeito). */
+  function drawPerfectRing(nowMs) {
+    if (!perfectRing) return;
+    const u = (nowMs - perfectRing.startMs) / PERFECT_RING_MS;
+    if (u >= 1) {
+      perfectRing = null;
+      return;
+    }
+    const maxR = Math.min(canvas.width, canvas.height) * 0.9;
+    const r = 40 + (maxR - 40) * u;
+    const alpha = 1 - u;
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, alpha);
+    ctx.strokeStyle = perfectRing.color;
+    ctx.lineWidth = Math.max(4, (1 - u) * 14);
+    ctx.shadowColor = perfectRing.color;
+    ctx.shadowBlur = 24;
+    ctx.beginPath();
+    ctx.arc(perfectRing.cx, perfectRing.cy, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /** Banner central "COR PERFEITA! +50" com fade-in/out e leve rotação. */
+  function drawPerfectBanner(nowMs) {
+    if (!perfectBanner) return;
+    const u = (nowMs - perfectBanner.startMs) / PERFECT_BANNER_MS;
+    if (u >= 1) {
+      perfectBanner = null;
+      return;
+    }
+    // Fade-in rápido nos primeiros 15%, fade-out nos últimos 25%.
+    let alpha = 1;
+    if (u < 0.15) alpha = u / 0.15;
+    else if (u > 0.75) alpha = Math.max(0, (1 - u) / 0.25);
+
+    const v = videoContentRect;
+    const cx = v.x + v.w / 2;
+    const cy = v.y + v.h * 0.42;
+    const sizePx = Math.round(Math.min(110, Math.max(42, canvas.width * 0.09)));
+    const tilt = Math.sin(u * Math.PI) * 0.04;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(cx, cy);
+    ctx.rotate(tilt);
+    ctx.font = `900 ${sizePx}px system-ui,sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = perfectBanner.color;
+    ctx.shadowBlur = 30;
+    ctx.lineWidth = 8;
+    ctx.strokeStyle = "rgba(0,0,0,0.85)";
+    ctx.strokeText(perfectBanner.label, 0, 0);
+    ctx.fillStyle = "#fffbeb";
+    ctx.fillText(perfectBanner.label, 0, 0);
+    ctx.shadowBlur = 0;
+    // Sublinha com a cor da combo.
+    ctx.font = `700 ${Math.round(sizePx * 0.38)}px system-ui,sans-serif`;
+    ctx.fillStyle = perfectBanner.color;
+    ctx.fillText("+ cor pristina!", 0, sizePx * 0.72);
+    ctx.restore();
+  }
+
+  /**
+   * Dispara a sequência visual de fim de partida: para o dano, aplica slow-mo,
+   * shake/flash/banner e só chama `onFinish` depois de `END_SEQUENCE_MS`.
+   * @param {any} result
+   * @param {string} label
+   * @param {string} sublabel
+   * @param {string} [color]
+   */
+  function startEndingSequence(result, label, sublabel, color = "#fde68a") {
+    if (endingSequence) return;
+    const nowMs = performance.now();
+    blockDamageEnabled = false;
+    endingSequence = {
+      startMs: nowMs,
+      duration: END_SEQUENCE_MS,
+      label,
+      sublabel,
+      color,
+      result,
+    };
+    screenShakeUntil = Math.max(screenShakeUntil, nowMs + END_SHAKE_MS);
+    flashStart = nowMs;
+    flashUntil = nowMs + END_FLASH_MS;
+    endingSlowmoActive = true;
+    endingSlowmoStart = nowMs;
+    // Limpa qualquer combo pendente para não disparar popup no frame atual.
+    comboColor = [null, null];
+    comboMult = [1, 1];
+  }
+
+  /** Overlay do banner de fim de partida (vitória/conclusão). */
+  function drawEndingOverlay(nowMs) {
+    if (!endingSequence) return;
+    const u = Math.min(1, (nowMs - endingSequence.startMs) / endingSequence.duration);
+    // Escurecimento suave do fundo.
+    const dim = Math.min(0.35, 0.45 * u);
+    ctx.save();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = dim;
+    ctx.fillStyle = "#020617";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+
+    // Banner principal com fade-in, bounce e leve tilt.
+    let alpha = 1;
+    if (u < 0.12) alpha = u / 0.12;
+    else if (u > 0.82) alpha = Math.max(0, (1 - u) / 0.18);
+    const v = videoContentRect;
+    const cx = v.x + v.w / 2;
+    const cy = v.y + v.h * 0.44;
+    const sizePx = Math.round(Math.min(130, Math.max(46, canvas.width * 0.1)));
+    const bounce = u < 0.35 ? Math.sin(u * Math.PI * 2.7) * (1 - u) * 14 : 0;
+    const tilt = Math.sin(u * Math.PI) * 0.035;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(cx, cy + bounce);
+    ctx.rotate(tilt);
+    ctx.font = `900 ${sizePx}px system-ui,sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = endingSequence.color;
+    ctx.shadowBlur = 34;
+    ctx.lineWidth = 10;
+    ctx.strokeStyle = "rgba(0,0,0,0.9)";
+    ctx.strokeText(endingSequence.label, 0, 0);
+    ctx.fillStyle = "#fffbeb";
+    ctx.fillText(endingSequence.label, 0, 0);
+    ctx.shadowBlur = 0;
+    if (endingSequence.sublabel) {
+      ctx.font = `700 ${Math.round(sizePx * 0.42)}px system-ui,sans-serif`;
+      ctx.fillStyle = endingSequence.color;
+      ctx.fillText(endingSequence.sublabel, 0, sizePx * 0.78);
+    }
+    ctx.restore();
   }
 
   function drawScore() {
@@ -1094,6 +1619,34 @@ export function createBlockBreakerGame(canvas, options = {}) {
       ctx.fillText(t2, bx2 + w2 - padX, centerY);
     }
 
+    // Linha discreta com valor atual do bloco (decay) e combo em curso.
+    const nowMs = performance.now();
+    const blockVal = Math.round(currentBlockValue(nowMs));
+    const subPx = Math.max(11, Math.round(mainPx * 0.36));
+    ctx.font = `600 ${subPx}px system-ui,sans-serif`;
+    ctx.shadowColor = "rgba(0,0,0,0.55)";
+    ctx.shadowBlur = 6;
+    const subY = centerY + mainPx * 0.95;
+
+    if (single) {
+      const parts = [`Bloco: ${blockVal} pts`];
+      if (comboMult[0] >= 2) parts.push(`${comboMult[0]}x`);
+      ctx.textAlign = "center";
+      ctx.fillStyle = "rgba(226, 232, 240, 0.85)";
+      ctx.fillText(parts.join("  •  "), v.x + v.w / 2, subY);
+    } else {
+      const mid = v.x + v.w / 2;
+      const cxLeft = (v.x + mid) / 2;
+      const cxRight = (mid + v.x + v.w) / 2;
+      const left = comboMult[0] >= 2 ? `${blockVal} pts  •  ${comboMult[0]}x` : `${blockVal} pts`;
+      const right = comboMult[1] >= 2 ? `${comboMult[1]}x  •  ${blockVal} pts` : `${blockVal} pts`;
+      ctx.textAlign = "center";
+      ctx.fillStyle = "rgba(167, 243, 208, 0.85)";
+      ctx.fillText(left, cxLeft, subY);
+      ctx.fillStyle = "rgba(253, 186, 116, 0.85)";
+      ctx.fillText(right, cxRight, subY);
+    }
+
     ctx.restore();
   }
 
@@ -1104,65 +1657,109 @@ export function createBlockBreakerGame(canvas, options = {}) {
 
     const dtMs = lastPhysicsMs ? t - lastPhysicsMs : 1000 / 60;
     lastPhysicsMs = t;
-    const dt = Math.min(dtMs / 1000, 0.045);
+    // Ending slow-mo tem prioridade sobre o slow-mo do +50.
+    if (endingSlowmoActive) {
+      const elapsed = t - endingSlowmoStart;
+      if (elapsed <= END_SLOWMO_HOLD_MS) {
+        timeScale = 0.28;
+      } else if (elapsed <= END_SLOWMO_HOLD_MS + END_SLOWMO_RAMP_MS) {
+        const k = (elapsed - END_SLOWMO_HOLD_MS) / END_SLOWMO_RAMP_MS;
+        timeScale = 0.28 + (0.85 - 0.28) * k;
+      } else {
+        timeScale = 0.85;
+        endingSlowmoActive = false;
+      }
+    } else if (slowmoActive) {
+      const elapsed = t - slowmoStart;
+      if (elapsed <= PERFECT_SLOWMO_HOLD_MS) {
+        timeScale = 0.35;
+      } else if (elapsed <= PERFECT_SLOWMO_HOLD_MS + PERFECT_SLOWMO_RAMP_MS) {
+        const k = (elapsed - PERFECT_SLOWMO_HOLD_MS) / PERFECT_SLOWMO_RAMP_MS;
+        timeScale = 0.35 + (1 - 0.35) * k;
+      } else {
+        timeScale = 1;
+        slowmoActive = false;
+      }
+    } else if (!endingSequence) {
+      timeScale = 1;
+    }
+    const dt = Math.min((dtMs / 1000) * timeScale, 0.045);
 
     if (!finished) {
       if (!gameplayPaused) {
         stepPhysics(dt);
-        tryDamageBlocks(t);
+        // Durante a sequência de fim, não aplica dano (e não toca hit sound).
+        if (!endingSequence) tryDamageBlocks(t);
         updateAndCullDebris(dt, t);
 
-        if (single) {
-          if (remainingCount() === 0) {
-            finished = true;
-            if (onFinish) {
+        if (!endingSequence) {
+          if (single) {
+            if (remainingCount() === 0) {
               const s1 = scores[0];
               const s2 = scores[1];
-              onFinish({
-                gameId: "blockBreaker",
-                mode: "single",
+              const result = {
+                gameId: /** @type {const} */ ("blockBreaker"),
+                mode: /** @type {const} */ ("single"),
                 timeSec: elapsedSec,
                 timeP1: elapsedSec,
                 timeP2: 0,
-                winner: null,
+                winner: /** @type {null|1|2} */ (null),
                 scoreP1: s1,
                 scoreP2: s2,
                 scoreTotal: s1 + s2,
-              });
+              };
+              startEndingSequence(
+                result,
+                "COMBO COMPLETO!",
+                `${s1} pontos  •  ${elapsedSec.toFixed(2)} s`,
+                "#fde68a",
+              );
             }
-          }
-        } else {
-          const r0 = remainingForOwner(0);
-          const r1 = remainingForOwner(1);
-          if (r0 === 0 && ownerClearTime[0] < 0) ownerClearTime[0] = t;
-          if (r1 === 0 && ownerClearTime[1] < 0) ownerClearTime[1] = t;
+          } else {
+            const r0 = remainingForOwner(0);
+            const r1 = remainingForOwner(1);
+            if (r0 === 0 && ownerClearTime[0] < 0) ownerClearTime[0] = t;
+            if (r1 === 0 && ownerClearTime[1] < 0) ownerClearTime[1] = t;
 
-          let win = null;
-          if (ownerClearTime[0] >= 0 && ownerClearTime[1] >= 0) {
-            win = ownerClearTime[0] <= ownerClearTime[1] ? 1 : 2;
-          } else if (ownerClearTime[0] >= 0) {
-            win = 1;
-          } else if (ownerClearTime[1] >= 0) {
-            win = 2;
-          }
+            let win = null;
+            if (ownerClearTime[0] >= 0 && ownerClearTime[1] >= 0) {
+              win = ownerClearTime[0] <= ownerClearTime[1] ? 1 : 2;
+            } else if (ownerClearTime[0] >= 0) {
+              win = 1;
+            } else if (ownerClearTime[1] >= 0) {
+              win = 2;
+            }
 
-          if (win != null) {
-            finished = true;
-            if (onFinish) {
+            if (win != null) {
               const s1 = scores[0];
               const s2 = scores[1];
-              onFinish({
-                gameId: "blockBreaker",
-                mode: "multi",
+              const result = {
+                gameId: /** @type {const} */ ("blockBreaker"),
+                mode: /** @type {const} */ ("multi"),
                 timeSec: elapsedSec,
                 timeP1: elapsedSec,
                 timeP2: elapsedSec,
-                winner: win,
+                winner: /** @type {null|1|2} */ (win),
                 scoreP1: s1,
                 scoreP2: s2,
                 scoreTotal: s1 + s2,
-              });
+              };
+              const winColor = win === 1 ? "#34d399" : "#fb923c";
+              startEndingSequence(
+                result,
+                win === 1 ? "P1 VENCE!" : "P2 VENCE!",
+                `${s1}  ×  ${s2}`,
+                winColor,
+              );
             }
+          }
+        } else {
+          // Ending ativo: ao expirar, chama onFinish.
+          if (t - endingSequence.startMs >= endingSequence.duration) {
+            finished = true;
+            const pending = endingSequence;
+            endingSequence = null;
+            if (onFinish && pending?.result) onFinish(pending.result);
           }
         }
       }
@@ -1176,7 +1773,8 @@ export function createBlockBreakerGame(canvas, options = {}) {
         debris = debris.filter((d) => t - d.startMs < d.duration);
         ctx.save();
         if (t < screenShakeUntil) {
-          const w = (screenShakeUntil - t) / SCREEN_SHAKE_MS;
+          const remaining = screenShakeUntil - t;
+          const w = Math.min(1, remaining / SCREEN_SHAKE_MS);
           const mag = 5.5 * w;
           const ph = t * 0.09;
           ctx.translate(Math.sin(ph) * mag, Math.cos(ph * 1.2) * mag);
@@ -1184,7 +1782,11 @@ export function createBlockBreakerGame(canvas, options = {}) {
         drawBlocks(t);
         drawDebris(t);
         drawHitPopups(t);
+        drawPerfectRing(t);
+        drawFlashOverlay(t);
         drawHandSprites(t);
+        drawEndingOverlay(t);
+        drawPerfectBanner(t);
         drawScore();
         ctx.restore();
         commitAllWristPrev(getGamePoses(), t);
@@ -1221,6 +1823,24 @@ export function createBlockBreakerGame(canvas, options = {}) {
       hitPopups = [];
       screenShakeUntil = 0;
       debris = [];
+      // Reset de scoring/combo/juice.
+      gameStartMs = 0;
+      comboColor = [null, null];
+      comboMult = [1, 1];
+      comboLastDestroyMs = [0, 0];
+      destroyedCountByColor = [{}, {}];
+      totalByColor = [{}, {}];
+      colorClearedAwarded = [new Set(), new Set()];
+      perfectBanner = null;
+      perfectRing = null;
+      flashStart = 0;
+      flashUntil = 0;
+      timeScale = 1;
+      slowmoActive = false;
+      slowmoStart = 0;
+      endingSequence = null;
+      endingSlowmoActive = false;
+      endingSlowmoStart = 0;
       resize();
       window.addEventListener("resize", resize);
       if (video) window.addEventListener("resize", resizePreviewOverlay);
