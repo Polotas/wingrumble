@@ -1,10 +1,16 @@
 <div id="screen-loading" class="screen screen-loading">
   <div class="game-panel-stack game-panel-stack--sm">
     <div class="game-panel game-panel--loading">
-      <div class="loading-progress" role="progressbar" aria-label="Carregando" aria-valuetext="Carregando">
+      <div
+        class="loading-progress"
+        role="progressbar"
+        aria-label="Carregando"
+        aria-valuetext="Carregando"
+        data-i18n-aria-label="loading.aria"
+      >
         <div class="loading-progress__bar" aria-hidden="true"></div>
       </div>
-      <p id="loading-status" class="loading-status">Preparando…</p>
+      <p id="loading-status" class="loading-status" data-i18n="loading.preparing">Preparando…</p>
       <p id="loading-tip" class="loading-tip" aria-live="polite"></p>
     </div>
   </div>

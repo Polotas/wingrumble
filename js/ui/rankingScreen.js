@@ -54,7 +54,6 @@ function showGameDetail(gameId) {
   const icon = /** @type {HTMLImageElement|null} */ (
     document.getElementById("ranking-detail-icon")
   );
-  const title = document.getElementById("ranking-detail-title");
   const ol = document.getElementById("ranking-detail-list");
   const empty = document.getElementById("ranking-detail-empty");
 
@@ -62,9 +61,6 @@ function showGameDetail(gameId) {
   if (icon && meta) {
     icon.src = meta.icon;
     icon.alt = meta.name;
-  }
-  if (title && meta) {
-    title.textContent = meta.name;
   }
 
   const entries = getTopScores(gameId);

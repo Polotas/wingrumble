@@ -5,7 +5,7 @@
 import { mapVideoKpToCanvas } from "./videoFit.js";
 import { getCameraFitMode } from "./cameraDisplayPrefs.js";
 
-const INFERENCE_INTERVAL_MS = 1000 / 15;
+const INFERENCE_INTERVAL_MS = 1000 / 30;
 
 let detector = null;
 let cachedPoses = [];

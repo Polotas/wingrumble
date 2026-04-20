@@ -2,10 +2,16 @@ export const EMBEDDED_FRAGMENTS = [
   `<div id="screen-loading" class="screen screen-loading">
   <div class="game-panel-stack game-panel-stack--sm">
     <div class="game-panel game-panel--loading">
-      <div class="loading-progress" role="progressbar" aria-label="Carregando" aria-valuetext="Carregando">
+      <div
+        class="loading-progress"
+        role="progressbar"
+        aria-label="Carregando"
+        aria-valuetext="Carregando"
+        data-i18n-aria-label="loading.aria"
+      >
         <div class="loading-progress__bar" aria-hidden="true"></div>
       </div>
-      <p id="loading-status" class="loading-status">Preparando…</p>
+      <p id="loading-status" class="loading-status" data-i18n="loading.preparing">Preparando…</p>
       <p id="loading-tip" class="loading-tip" aria-live="polite"></p>
     </div>
   </div>
@@ -27,19 +33,18 @@ export const EMBEDDED_FRAGMENTS = [
     </div>
     <div class="game-panel-stack game-panel-stack--md">
       <div class="game-panel game-panel--home">
-        <h1 class="home-title">Escolha o <br> modo de jogo</h1>
         <div class="home-actions">
           <button type="button" id="btn-mode-single" class="btn-home" disabled>
-            Um jogador
+            <span data-i18n="home.single">Um jogador</span>
           </button>
           <button type="button" id="btn-mode-multi" class="btn-home" disabled>
-            Dois jogadores
+            <span data-i18n="home.multi">Dois jogadores</span>
           </button>
           <button type="button" id="btn-home-ranking" class="btn-home btn-home--ghost">
-            Ranking
+            <span data-i18n="home.ranking">Ranking</span>
           </button>
         </div>
-        <p class="home-hint">Use a câmera em um lugar bem iluminado e deixe o corpo visível.</p>
+        <p class="home-hint" data-i18n="home.hint">Use a câmera em um lugar bem iluminado e deixe o corpo visível.</p>
       </div>
     </div>
   </div>
@@ -48,7 +53,7 @@ export const EMBEDDED_FRAGMENTS = [
   <header class="mode-select-top-bar" aria-label="Navegação">
     <div class="mode-select-top-bar__left">
       <button type="button" id="btn-mode-select-back" class="btn-screen-back mode-select-top-bar__back">
-        Voltar
+        <span data-i18n="nav.back">Voltar</span>
       </button>
     </div>
     <div class="mode-select-top-bar__center"></div>
@@ -58,7 +63,7 @@ export const EMBEDDED_FRAGMENTS = [
         class="game-select-players-badge mode-select-top-bar__badge"
         aria-live="polite"
       >
-        2 Players
+        <span data-i18n="players.two">2 Players</span>
       </p>
     </div>
   </header>
@@ -111,7 +116,7 @@ export const EMBEDDED_FRAGMENTS = [
   <header class="quick-play-top-bar" aria-label="Navegação">
     <div class="quick-play-top-bar__left">
       <button type="button" id="btn-quick-play-back" class="btn-screen-back quick-play-top-bar__back">
-        Voltar
+        <span data-i18n="nav.back">Voltar</span>
       </button>
     </div>
     <div class="quick-play-top-bar__center"></div>
@@ -121,7 +126,7 @@ export const EMBEDDED_FRAGMENTS = [
         class="game-select-players-badge quick-play-top-bar__badge"
         aria-live="polite"
       >
-        2 Players
+        <span data-i18n="players.two">2 Players</span>
       </p>
     </div>
   </header>
@@ -137,9 +142,9 @@ export const EMBEDDED_FRAGMENTS = [
     </div>
     <div class="game-panel-stack game-panel-stack--md">
       <div class="game-panel game-panel--game-select quick-play-panel">
-        <h2 class="quick-play-subtitle">Número de rounds</h2>
+        <h2 class="quick-play-subtitle" data-i18n="quickPlay.roundsTitle">Número de rounds</h2>
 
-        <fieldset class="quick-play-series" aria-label="Selecione a série">
+        <fieldset class="quick-play-series" aria-label="Selecione a série" data-i18n-aria-label="quickPlay.bestOf.aria">
           <label class="quick-play-series__opt">
             <input type="radio" name="quick-play-bestof" value="3" checked />
             <span class="quick-play-series__label">3</span>
@@ -156,7 +161,7 @@ export const EMBEDDED_FRAGMENTS = [
 
         <div class="quick-play-actions">
           <button type="button" id="btn-quick-play-start" class="btn-panel btn-panel--quickmatch">
-            Iniciar Quick Match
+            <span data-i18n="quickPlay.start">Iniciar Quick Match</span>
           </button>
         </div>
       </div>
@@ -167,7 +172,7 @@ export const EMBEDDED_FRAGMENTS = [
   <header class="game-select-top-bar" aria-label="Navegação">
     <div class="game-select-top-bar__left">
       <button type="button" id="btn-game-select-back" class="btn-screen-back game-select-top-bar__back">
-        Voltar
+        <span data-i18n="nav.back">Voltar</span>
       </button>
     </div>
     <div class="game-select-top-bar__center"></div>
@@ -177,7 +182,7 @@ export const EMBEDDED_FRAGMENTS = [
         class="game-select-players-badge game-select-top-bar__badge"
         aria-live="polite"
       >
-        2 Players
+        <span data-i18n="players.two">2 Players</span>
       </p>
     </div>
   </header>
@@ -192,11 +197,12 @@ export const EMBEDDED_FRAGMENTS = [
 
   <div class="game-panel-stack game-panel-stack--md">
     <div class="game-panel game-panel--game-select">
-      <div class="game-carousel" aria-label="Carrossel de jogos">
+      <div class="game-carousel" aria-label="Carrossel de jogos" data-i18n-aria-label="gameSelect.carousel.aria">
         <button
           type="button"
           class="game-carousel__nav game-carousel__nav--prev"
           aria-label="Jogo anterior"
+          data-i18n-aria-label="gameSelect.carousel.prev.aria"
         >
           ‹
         </button>
@@ -214,10 +220,11 @@ export const EMBEDDED_FRAGMENTS = [
                   class="game-card__icon"
                   src="assets/select-game-screen/breack_blocks.png"
                   alt="Quebra-blocos"
+                  data-i18n-alt="games.blockBreaker.alt"
                   decoding="async"
                 />
               </span>
-              <span class="game-card__desc">Destrua 6 blocos com as mãos — no duo, cooperativo no mesmo conjunto</span>
+              <span class="game-card__desc" data-i18n="games.blockBreaker.desc">Destrua 6 blocos com as mãos — no duo, cooperativo no mesmo conjunto</span>
             </button>
 
             <button
@@ -231,10 +238,11 @@ export const EMBEDDED_FRAGMENTS = [
                   class="game-card__icon"
                   src="assets/select-game-screen/dust_swipe.png"
                   alt="Limpeza"
+                  data-i18n-alt="games.cleanScreen.alt"
                   decoding="async"
                 />
               </span>
-              <span class="game-card__desc">Faça círculos com as mãos para limpar manchas</span>
+              <span class="game-card__desc" data-i18n="games.cleanScreen.desc">Faça círculos com as mãos para limpar manchas</span>
             </button>
 
             <button
@@ -248,10 +256,11 @@ export const EMBEDDED_FRAGMENTS = [
                   class="game-card__icon"
                   src="assets/select-game-screen/FruitCollect.png"
                   alt="Coleta"
+                  data-i18n-alt="games.collect.alt"
                   decoding="async"
                 />
               </span>
-              <span class="game-card__desc">Junte as mãos para formar um cesto e pegar frutas (cuidado com a bomba)</span>
+              <span class="game-card__desc" data-i18n="games.collect.desc">Junte as mãos para formar um cesto e pegar frutas (cuidado com a bomba)</span>
             </button>
 
             <button
@@ -262,8 +271,8 @@ export const EMBEDDED_FRAGMENTS = [
               disabled
               aria-disabled="true"
             >
-              <span class="game-card__name">Sprint 100 m</span>
-              <span class="game-card__desc">Indisponível no momento</span>
+              <span class="game-card__name" data-i18n="games.sprint100m.name">Sprint 100 m</span>
+              <span class="game-card__desc" data-i18n="games.sprint100m.soon">Indisponível no momento</span>
             </button>
           </div>
         </div>
@@ -272,6 +281,7 @@ export const EMBEDDED_FRAGMENTS = [
           type="button"
           class="game-carousel__nav game-carousel__nav--next"
           aria-label="Próximo jogo"
+          data-i18n-aria-label="gameSelect.carousel.next.aria"
         >
           ›
         </button>
@@ -279,7 +289,7 @@ export const EMBEDDED_FRAGMENTS = [
 
       <div class="game-carousel__confirm">
         <button type="button" id="btn-game-select-confirm" class="btn-panel">
-          Confirmar
+          <span data-i18n="gameSelect.confirm">Confirmar</span>
         </button>
       </div>
     </div>
@@ -289,7 +299,7 @@ export const EMBEDDED_FRAGMENTS = [
   <header class="ranking-top-bar" aria-label="Navegação">
     <div class="ranking-top-bar__left">
       <button type="button" id="btn-ranking-back" class="btn-screen-back ranking-top-bar__back">
-        Voltar
+        <span data-i18n="nav.back">Voltar</span>
       </button>
     </div>
     <div class="ranking-top-bar__center"></div>
@@ -300,8 +310,9 @@ export const EMBEDDED_FRAGMENTS = [
     class="ranking-view ranking-view--list"
     id="ranking-view-list"
     aria-label="Selecione um minigame"
+    data-i18n-aria-label="ranking.list.aria"
   >
-    <h1 class="ranking-title">Ranking</h1>
+    <h1 class="ranking-title" data-i18n="ranking.title">Ranking</h1>
     <ul class="ranking-game-list" role="list">
       <li class="ranking-game-item">
         <button
@@ -317,7 +328,6 @@ export const EMBEDDED_FRAGMENTS = [
               decoding="async"
             />
           </span>
-          <span class="game-card__desc">Quebra-blocos</span>
         </button>
       </li>
       <li class="ranking-game-item">
@@ -334,7 +344,6 @@ export const EMBEDDED_FRAGMENTS = [
               decoding="async"
             />
           </span>
-          <span class="game-card__desc">Limpeza</span>
         </button>
       </li>
       <li class="ranking-game-item">
@@ -351,7 +360,6 @@ export const EMBEDDED_FRAGMENTS = [
               decoding="async"
             />
           </span>
-          <span class="game-card__desc">Coleta</span>
         </button>
       </li>
     </ul>
@@ -361,6 +369,7 @@ export const EMBEDDED_FRAGMENTS = [
     class="ranking-view ranking-view--detail"
     id="ranking-view-detail"
     aria-label="Top 10"
+    data-i18n-aria-label="ranking.detail.aria"
     hidden
   >
     <div class="ranking-detail-header">
@@ -371,28 +380,28 @@ export const EMBEDDED_FRAGMENTS = [
         alt=""
         decoding="async"
       />
-      <h2 id="ranking-detail-title" class="ranking-detail-title">Minigame</h2>
     </div>
     <ol id="ranking-detail-list" class="ranking-list" role="list"></ol>
-    <p id="ranking-detail-empty" class="ranking-empty" hidden>
+    <p id="ranking-detail-empty" class="ranking-empty" hidden data-i18n="ranking.empty">
       Ainda sem recordes. Jogue em Um jogador para começar!
     </p>
   </section>
 </div>`,
   `<div id="screen-detection" class="screen screen-detection">
   <button type="button" id="btn-detection-back" class="btn-screen-back">
-    Voltar
+    <span data-i18n="nav.back">Voltar</span>
   </button>
   <div
     id="detection-controls-panel"
     class="game-panel game-panel--detection detection-controls-panel debug-detection-panel--dock"
   >
     <div class="detection-controls-panel__fit">
-      <p class="detection-panel__title">Visualização da câmera</p>
+      <p class="detection-panel__title" data-i18n="detection.cameraView">Visualização da câmera</p>
       <div
         class="camera-fit-toggle camera-fit-toggle--panel"
         role="group"
         aria-label="Tipo de visualização da câmera"
+        data-i18n-aria-label="detection.fit.group"
       >
         <button
           type="button"
@@ -400,6 +409,7 @@ export const EMBEDDED_FRAGMENTS = [
           class="camera-fit-toggle__btn"
           aria-pressed="true"
           aria-label="Proporção da câmera"
+          data-i18n-aria-label="detection.fit.contain.aria"
         >
           <svg
             class="camera-fit-toggle__icon"
@@ -414,7 +424,7 @@ export const EMBEDDED_FRAGMENTS = [
             <rect x="4" y="5" width="16" height="14" rx="2.5" stroke="currentColor" stroke-width="2" />
             <rect x="7" y="8" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="2" opacity="0.65" />
           </svg>
-          <span class="camera-fit-toggle__label">Proporção</span>
+          <span class="camera-fit-toggle__label" data-i18n="detection.fit.contain">Proporção</span>
         </button>
         <button
           type="button"
@@ -422,6 +432,7 @@ export const EMBEDDED_FRAGMENTS = [
           class="camera-fit-toggle__btn"
           aria-pressed="false"
           aria-label="Tela cheia"
+          data-i18n-aria-label="detection.fit.cover.aria"
         >
           <svg
             class="camera-fit-toggle__icon"
@@ -440,14 +451,14 @@ export const EMBEDDED_FRAGMENTS = [
               stroke-linecap="round"
             />
           </svg>
-          <span class="camera-fit-toggle__label">Tela cheia</span>
+          <span class="camera-fit-toggle__label" data-i18n="detection.fit.cover">Tela cheia</span>
         </button>
       </div>
     </div>
     <div id="debug-detection-extra" class="debug-detection-extra" hidden>
-      <p class="detection-panel__title">Debug — detecção</p>
+      <p class="detection-panel__title" data-i18n="detection.debug.title">Debug — detecção</p>
       <label class="debug-detection-panel__label" for="debug-detection-score">
-        Confiança mínima dos pontos (score)
+        <span data-i18n="detection.debug.minScore">Confiança mínima dos pontos (score)</span>
       </label>
       <div class="debug-detection-panel__row">
         <input
@@ -462,6 +473,7 @@ export const EMBEDDED_FRAGMENTS = [
           aria-valuemax="100"
           aria-valuenow="25"
           aria-label="Confiança mínima da detecção"
+          data-i18n-aria-label="detection.debug.sliderAria"
         />
         <output id="debug-detection-score-value" class="debug-detection-panel__value" for="debug-detection-score"
           >0.25</output
@@ -475,7 +487,7 @@ export const EMBEDDED_FRAGMENTS = [
             class="debug-detection-checkbox"
             checked
           />
-          <span>Sprites das mãos (Quebra-blocos)</span>
+          <span data-i18n="detection.debug.handSprites">Sprites das mãos (Quebra-blocos)</span>
         </label>
       </div>
     </div>
@@ -497,7 +509,7 @@ export const EMBEDDED_FRAGMENTS = [
       <div class="detection-camera-loading__card" role="status" aria-live="polite">
         <span class="detection-camera-loading__spinner" aria-hidden="true"></span>
         <span class="detection-camera-loading__text" data-camera-loading-text>
-          Carregando câmera…
+          <span data-i18n="detection.cameraLoading">Carregando câmera…</span>
         </span>
       </div>
     </div>
@@ -513,7 +525,7 @@ export const EMBEDDED_FRAGMENTS = [
           class="btn-home btn-camera-start"
           hidden
         >
-          Permitir câmera
+          <span data-i18n="detection.allowCamera">Permitir câmera</span>
         </button>
       </div>
     </div>
@@ -548,12 +560,12 @@ export const EMBEDDED_FRAGMENTS = [
 >
   <div class="game-panel-stack game-panel-stack--md">
     <div class="game-panel game-panel--results panel-results__card">
-      <h2 id="results-title" class="panel-results__title">Resultado</h2>
+      <h2 id="results-title" class="panel-results__title" data-i18n="results.title">Resultado</h2>
       <div id="panel-results-new-record" class="panel-results__new-record" hidden>
-        <p class="panel-results__new-record-title">Novo Recorde!</p>
+        <p class="panel-results__new-record-title" data-i18n="results.newRecord">Novo Recorde!</p>
         <p id="panel-results-new-record-summary" class="panel-results__new-record-summary"></p>
         <label class="panel-results__new-record-label" for="input-record-name">
-          Seu nome
+          <span data-i18n="results.yourName">Seu nome</span>
         </label>
         <input
           type="text"
@@ -563,18 +575,19 @@ export const EMBEDDED_FRAGMENTS = [
           autocomplete="off"
           spellcheck="false"
           placeholder="Digite seu nome"
+          data-i18n-placeholder="results.namePlaceholder"
         />
         <button type="button" id="btn-record-save" class="btn-panel panel-results__new-record-save">
-          Salvar recorde
+          <span data-i18n="results.save">Salvar recorde</span>
         </button>
       </div>
       <p id="results-body" class="panel-results__body"></p>
       <div class="panel-results__actions">
         <button type="button" id="btn-results-restart" class="btn-panel">
-          Jogar de novo
+          <span data-i18n="results.playAgain">Jogar de novo</span>
         </button>
         <button type="button" id="btn-results-home" class="btn-panel btn-panel--ghost">
-          Início
+          <span data-i18n="results.home">Início</span>
         </button>
       </div>
     </div>

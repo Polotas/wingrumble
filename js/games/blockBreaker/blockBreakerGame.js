@@ -1,6 +1,7 @@
 import { getBlockBreakerHandSpritesEnabled } from "../../core/blockBreakerDisplayPrefs.js";
 import { getPlayerPoses, sortPosesByMirroredScreenX } from "../../core/poseService.js";
 import { getCameraFitMode } from "../../core/cameraDisplayPrefs.js";
+import { playSfx } from "../../core/audioMixer.js";
 import {
   getVideoFitRect,
   getVideoLayoutRect,
@@ -30,6 +31,16 @@ function hitFeedbackForDamage(damage) {
 const BLOCK_HP_MIN = 5;
 const BLOCK_HP_MAX = 8;
 const KP_MIN_SCORE = 0.28;
+/** Limiar (mais permissivo) para apenas DESENHAR o sprite da mão; não afeta lógica de hit. */
+const KP_DRAW_SCORE = 0.18;
+/** Tempo após a última detecção válida em que o sprite continua a ser desenhado na última posição. */
+const HAND_STICKY_MS = 300;
+/** Fator de suavização exponencial aplicado à posição do sprite (0..1); maior = responde mais rápido. */
+const HAND_SMOOTH_ALPHA = 0.45;
+/** Tempo (ms) para o sprite aparecer gradualmente (fade-in). */
+const HAND_FADE_IN_MS = 120;
+/** Tempo (ms) para o sprite desaparecer gradualmente quando a detecção é perdida. */
+const HAND_FADE_OUT_MS = 180;
 /** Evita vários golpes no mesmo bloco no mesmo swing. */
 const BLOCK_HIT_INVUL_MS = 260;
 /** Cooldown por punho após acertar (evita vários hits no mesmo gesto). */
@@ -153,9 +164,7 @@ function playJellyHitSound() {
   try {
     const href = JELLY_HIT_AUDIO_URLS[jellyHitSoundIndex % JELLY_HIT_AUDIO_URLS.length];
     jellyHitSoundIndex += 1;
-    const a = new Audio(href);
-    a.volume = 0.62;
-    void a.play().catch(() => {});
+    playSfx(href, { baseVolume: 0.62 });
   } catch {
     /* ignore */
   }
@@ -302,6 +311,13 @@ export function createBlockBreakerGame(canvas, options = {}) {
   const wristPrev = new Map();
   /** Último instante em que este punho acertou (cooldown). */
   const wristLastHitMs = new Map();
+  /**
+   * Estado visual persistente dos sprites das mãos (posição suavizada em coords do canvas,
+   * última detecção válida e alpha atual para fade in/out). Evita que o sprite "pisque"
+   * quando a pose perde confiança por um frame ou dois.
+   * @type {Map<string, { x: number; y: number; lastSeenMs: number; alpha: number; lastDrawMs: number }>}
+   */
+  const handSpriteState = new Map();
 
   /** @type {{ x: number; y: number; text: string; color: string; startMs: number; duration: number; big?: boolean }[]} */
   let hitPopups = [];
@@ -1214,19 +1230,68 @@ export function createBlockBreakerGame(canvas, options = {}) {
       const kps = poses[i]?.keypoints;
       if (!kps) continue;
       for (const side of ["left", "right"]) {
-        const kp = findKp(kps, side === "left" ? "left_wrist" : "right_wrist");
-        if (!kp || (kp.score ?? 0) < KP_MIN_SCORE) continue;
-        const speed = getWristSpeedNoUpdate(kp, i, side, nowMs);
-        const dmg = damageFromSpeed(speed);
-        const scale = dmg > 0 ? 1.08 : 1;
-        const p = mapKpToCanvas(kp, video, canvas, true);
         const img = side === "left" ? imgL : imgR;
         if (!img || !img.complete || img.naturalWidth < 1) continue;
+        const key = `${i}-${side}`;
+        const kp = findKp(kps, side === "left" ? "left_wrist" : "right_wrist");
+        const score = kp?.score ?? 0;
+        const seen = !!kp && score >= KP_DRAW_SCORE;
+        let state = handSpriteState.get(key);
+
+        if (seen) {
+          const p = mapKpToCanvas(kp, video, canvas, true);
+          if (!state) {
+            state = { x: p.x, y: p.y, lastSeenMs: nowMs, alpha: 0, lastDrawMs: nowMs };
+            handSpriteState.set(key, state);
+          } else {
+            // Suavização exponencial para reduzir jitter do MoveNet.
+            state.x += (p.x - state.x) * HAND_SMOOTH_ALPHA;
+            state.y += (p.y - state.y) * HAND_SMOOTH_ALPHA;
+            state.lastSeenMs = nowMs;
+          }
+        } else {
+          if (!state) continue;
+          // Sem detecção: mantém a última posição válida durante o grace period.
+          if (nowMs - state.lastSeenMs > HAND_STICKY_MS + HAND_FADE_OUT_MS) {
+            handSpriteState.delete(key);
+            continue;
+          }
+        }
+
+        // Atualiza alpha (fade-in quando visível; fade-out após o sticky).
+        const dt = Math.max(0, Math.min(120, nowMs - (state.lastDrawMs || nowMs)));
+        state.lastDrawMs = nowMs;
+        const withinSticky = nowMs - state.lastSeenMs <= HAND_STICKY_MS;
+        const targetAlpha = withinSticky ? 1 : 0;
+        const fadeMs = targetAlpha > state.alpha ? HAND_FADE_IN_MS : HAND_FADE_OUT_MS;
+        const step = fadeMs > 0 ? dt / fadeMs : 1;
+        if (targetAlpha > state.alpha) {
+          state.alpha = Math.min(targetAlpha, state.alpha + step);
+        } else {
+          state.alpha = Math.max(targetAlpha, state.alpha - step);
+        }
+        if (state.alpha <= 0.01 && !withinSticky) {
+          handSpriteState.delete(key);
+          continue;
+        }
+
+        // Escala visual com base no golpe apenas quando a detecção é real (e confiável para hit).
+        let scale = 1;
+        let baseAlpha = 0.72;
+        if (seen && score >= KP_MIN_SCORE) {
+          const speed = getWristSpeedNoUpdate(kp, i, side, nowMs);
+          const dmg = damageFromSpeed(speed);
+          if (dmg > 0) {
+            scale = 1.08;
+            baseAlpha = 1;
+          }
+        }
+
         const ar = img.naturalHeight / img.naturalWidth;
         const w = baseW * scale;
         const h = w * ar;
-        const q = resolveHandSpritePivot(p.x, p.y, w, h, nowMs);
-        ctx.globalAlpha = dmg > 0 ? 1 : 0.72;
+        const q = resolveHandSpritePivot(state.x, state.y, w, h, nowMs);
+        ctx.globalAlpha = baseAlpha * state.alpha;
         ctx.drawImage(img, q.x - w / 2, q.y - h * HAND_SPRITE_ANCHOR_Y, w, h);
       }
     }
@@ -1820,6 +1885,7 @@ export function createBlockBreakerGame(canvas, options = {}) {
       blocksPerPlayerDuo = BLOCK_COUNT;
       wristPrev.clear();
       wristLastHitMs.clear();
+      handSpriteState.clear();
       hitPopups = [];
       screenShakeUntil = 0;
       debris = [];

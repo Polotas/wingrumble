@@ -92,8 +92,17 @@
   background: transparent;
   box-shadow: none;
   align-items: center;
+  justify-content: flex-start;
+}
+
+/* O nome no ranking é só o ícone; altura fixa de .game-card__name quebra o layout */
+.screen-ranking .ranking-game-card .game-card__name {
+  height: auto;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
   justify-content: center;
-  gap: 10px;
 }
 
 .screen-ranking .ranking-game-card:hover:not(:disabled),
@@ -103,8 +112,9 @@
 
 .screen-ranking .ranking-game-card .game-card__icon {
   width: auto;
-  height: 160px;
+  height: 140px;
   max-width: 100%;
+  margin-top: 22px;
   display: block;
   filter: drop-shadow(0 10px 2px rgba(0, 0, 0, 0.2));
   transform: scale(1);
@@ -113,19 +123,6 @@
 
 .screen-ranking .ranking-game-card:hover:not(:disabled) .game-card__icon {
   transform: scale(1.06);
-}
-
-.screen-ranking .ranking-game-card .game-card__desc {
-  margin: 0;
-  padding: 8px 14px;
-  border-radius: var(--game-btn-radius);
-  border: 3px solid var(--game-panel-border);
-  background: var(--game-panel-fill);
-  box-shadow: inset 0 0 0 2px var(--game-panel-border-light), 0 3px 0 var(--game-shadow-fill);
-  font-weight: 700;
-  font-size: 0.95rem;
-  color: var(--game-text);
-  text-align: center;
 }
 
 /* Detalhe (Top 10) */
@@ -143,15 +140,6 @@
   max-width: 100%;
   display: block;
   filter: drop-shadow(0 10px 2px rgba(0, 0, 0, 0.2));
-}
-
-.ranking-detail-title {
-  margin: 0;
-  font-family: var(--font-title);
-  font-size: clamp(1.5rem, 5vw, 2rem);
-  font-weight: 400;
-  color: var(--game-text);
-  text-align: center;
 }
 
 .ranking-list {
@@ -218,7 +206,8 @@
 
 @media (max-width: 520px) {
   .screen-ranking .ranking-game-card .game-card__icon {
-    height: 130px;
+    height: 118px;
+    margin-top: 18px;
   }
   .ranking-detail-icon {
     height: 110px;

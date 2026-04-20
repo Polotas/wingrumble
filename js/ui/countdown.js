@@ -1,3 +1,5 @@
+import { getSfxDestination } from "../core/audioMixer.js";
+
 let sharedAudioCtx = null;
 
 function getAudioContext() {
@@ -41,7 +43,7 @@ export function runStartCountdown(textEl, opts = {}) {
       g.gain.setValueAtTime(0.14, t0);
       g.gain.exponentialRampToValueAtTime(0.01, t0 + dur);
       osc.connect(g);
-      g.connect(ctx.destination);
+      g.connect(getSfxDestination(ctx));
       osc.start(t0);
       osc.stop(t0 + dur);
     } catch {
@@ -109,7 +111,7 @@ export function runEndCountdown(textEl, opts = {}) {
       g.gain.setValueAtTime(0.14, t0);
       g.gain.exponentialRampToValueAtTime(0.01, t0 + dur);
       osc.connect(g);
-      g.connect(ctx.destination);
+      g.connect(getSfxDestination(ctx));
       osc.start(t0);
       osc.stop(t0 + dur);
     } catch {

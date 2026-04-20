@@ -5,6 +5,7 @@
 @import url("layout/body.css");
 @import url("components/game-panel.css");
 @import url("components/buttons.css");
+@import url("components/options-modal.css");
 @import url("pages/loading.css");
 @import url("pages/splash.css");
 @import url("pages/home.css");

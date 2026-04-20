@@ -2,7 +2,7 @@
   <header class="quick-play-top-bar" aria-label="Navegação">
     <div class="quick-play-top-bar__left">
       <button type="button" id="btn-quick-play-back" class="btn-screen-back quick-play-top-bar__back">
-        Voltar
+        <span data-i18n="nav.back">Voltar</span>
       </button>
     </div>
     <div class="quick-play-top-bar__center"></div>
@@ -12,7 +12,7 @@
         class="game-select-players-badge quick-play-top-bar__badge"
         aria-live="polite"
       >
-        2 Players
+        <span data-i18n="players.two">2 Players</span>
       </p>
     </div>
   </header>
@@ -28,9 +28,9 @@
     </div>
     <div class="game-panel-stack game-panel-stack--md">
       <div class="game-panel game-panel--game-select quick-play-panel">
-        <h2 class="quick-play-subtitle">Número de rounds</h2>
+        <h2 class="quick-play-subtitle" data-i18n="quickPlay.roundsTitle">Número de rounds</h2>
 
-        <fieldset class="quick-play-series" aria-label="Selecione a série">
+        <fieldset class="quick-play-series" aria-label="Selecione a série" data-i18n-aria-label="quickPlay.bestOf.aria">
           <label class="quick-play-series__opt">
             <input type="radio" name="quick-play-bestof" value="3" checked />
             <span class="quick-play-series__label">3</span>
@@ -47,7 +47,7 @@
 
         <div class="quick-play-actions">
           <button type="button" id="btn-quick-play-start" class="btn-panel btn-panel--quickmatch">
-            Iniciar Quick Match
+            <span data-i18n="quickPlay.start">Iniciar Quick Match</span>
           </button>
         </div>
       </div>

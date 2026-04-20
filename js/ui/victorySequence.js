@@ -5,6 +5,7 @@ import {
 } from "../core/poseService.js";
 import { mapVideoKpToCanvas } from "../core/videoFit.js";
 import { getCameraFitMode } from "../core/cameraDisplayPrefs.js";
+import { playSfx } from "../core/audioMixer.js";
 
 const VICTORY_MS = 5000;
 /** Duração da entrada em escala do banner (ease-out-back). */
@@ -20,13 +21,7 @@ const URL_VITORIA_P2 = new URL("../../assets/end-screen/vitoria_p2.png", import.
 const AUDIO_WIN_URL = new URL("../../assets/audios/audio_win.mp3", import.meta.url).href;
 
 function playWinSound() {
-  try {
-    const a = new Audio(AUDIO_WIN_URL);
-    a.volume = 0.95;
-    void a.play().catch(() => {});
-  } catch {
-    /* ignore */
-  }
+  playSfx(AUDIO_WIN_URL, { baseVolume: 0.95 });
 }
 
 function findKp(keypoints, name) {

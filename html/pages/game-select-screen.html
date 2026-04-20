@@ -2,7 +2,7 @@
   <header class="game-select-top-bar" aria-label="Navegação">
     <div class="game-select-top-bar__left">
       <button type="button" id="btn-game-select-back" class="btn-screen-back game-select-top-bar__back">
-        Voltar
+        <span data-i18n="nav.back">Voltar</span>
       </button>
     </div>
     <div class="game-select-top-bar__center"></div>
@@ -12,7 +12,7 @@
         class="game-select-players-badge game-select-top-bar__badge"
         aria-live="polite"
       >
-        2 Players
+        <span data-i18n="players.two">2 Players</span>
       </p>
     </div>
   </header>
@@ -27,11 +27,12 @@
 
   <div class="game-panel-stack game-panel-stack--md">
     <div class="game-panel game-panel--game-select">
-      <div class="game-carousel" aria-label="Carrossel de jogos">
+      <div class="game-carousel" aria-label="Carrossel de jogos" data-i18n-aria-label="gameSelect.carousel.aria">
         <button
           type="button"
           class="game-carousel__nav game-carousel__nav--prev"
           aria-label="Jogo anterior"
+          data-i18n-aria-label="gameSelect.carousel.prev.aria"
         >
           ‹
         </button>
@@ -49,10 +50,13 @@
                   class="game-card__icon"
                   src="assets/select-game-screen/breack_blocks.png"
                   alt="Quebra-blocos"
+                  data-i18n-alt="games.blockBreaker.alt"
                   decoding="async"
                 />
               </span>
-              <span class="game-card__desc">Destrua 6 blocos com as mãos — no duo, cooperativo no mesmo conjunto</span>
+              <span class="game-card__desc" data-i18n="games.blockBreaker.desc"
+                >Destrua 6 blocos com as mãos — no duo, cooperativo no mesmo conjunto</span
+              >
             </button>
 
             <button
@@ -66,10 +70,11 @@
                   class="game-card__icon"
                   src="assets/select-game-screen/dust_swipe.png"
                   alt="Limpeza"
+                  data-i18n-alt="games.cleanScreen.alt"
                   decoding="async"
                 />
               </span>
-              <span class="game-card__desc">Faça círculos com as mãos para limpar manchas</span>
+              <span class="game-card__desc" data-i18n="games.cleanScreen.desc">Faça círculos com as mãos para limpar manchas</span>
             </button>
 
             <button
@@ -83,10 +88,13 @@
                   class="game-card__icon"
                   src="assets/select-game-screen/FruitCollect.png"
                   alt="Coleta"
+                  data-i18n-alt="games.collect.alt"
                   decoding="async"
                 />
               </span>
-              <span class="game-card__desc">Junte as mãos para formar um cesto e pegar frutas (cuidado com a bomba)</span>
+              <span class="game-card__desc" data-i18n="games.collect.desc"
+                >Junte as mãos para formar um cesto e pegar frutas (cuidado com a bomba)</span
+              >
             </button>
 
             <button
@@ -97,8 +105,8 @@
               disabled
               aria-disabled="true"
             >
-              <span class="game-card__name">Sprint 100 m</span>
-              <span class="game-card__desc">Indisponível no momento</span>
+              <span class="game-card__name" data-i18n="games.sprint100m.name">Sprint 100 m</span>
+              <span class="game-card__desc" data-i18n="games.sprint100m.soon">Indisponível no momento</span>
             </button>
           </div>
         </div>
@@ -107,6 +115,7 @@
           type="button"
           class="game-carousel__nav game-carousel__nav--next"
           aria-label="Próximo jogo"
+          data-i18n-aria-label="gameSelect.carousel.next.aria"
         >
           ›
         </button>
@@ -114,7 +123,7 @@
 
       <div class="game-carousel__confirm">
         <button type="button" id="btn-game-select-confirm" class="btn-panel">
-          Confirmar
+          <span data-i18n="gameSelect.confirm">Confirmar</span>
         </button>
       </div>
     </div>

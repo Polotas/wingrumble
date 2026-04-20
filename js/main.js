@@ -24,6 +24,15 @@ import { createCleanGame } from "./games/cleanScreen/cleanGame.js";
 import { createCollectGame } from "./games/collect/collectGame.js";
 import { runEndCountdown, runStartCountdown } from "./ui/countdown.js";
 import { runVictorySequence } from "./ui/victorySequence.js";
+import { bindI18nAutoApply, t } from "./core/i18n.js";
+import { bindAudioPrefsAutoSync } from "./core/audioMixer.js";
+import {
+  getUserPrefs,
+  setBgVolume,
+  setLanguage,
+  setSfxVolume,
+  subscribeUserPrefs,
+} from "./core/userPrefs.js";
 import {
   extractCandidateFromResult,
   getTopScores,
@@ -79,12 +88,12 @@ function setGlobalFullscreenLocked(locked) {
 
 let loadingTipsTimer = 0;
 let loadingTipsIdx = 0;
-const LOADING_TIPS = [
-  "Dica: use um lugar bem iluminado para melhorar a detecção.",
-  "Dica: deixe o corpo inteiro visível na câmera.",
-  "Dica: evite luz forte atrás de você (contra-luz).",
-  "Dica: mantenha o celular firme (ou apoie em um suporte).",
-  "Dica: para 2 jogadores, fiquem um à esquerda e outro à direita.",
+const LOADING_TIP_KEYS = [
+  "loading.tip.0",
+  "loading.tip.1",
+  "loading.tip.2",
+  "loading.tip.3",
+  "loading.tip.4",
 ];
 
 /** @type {{ items: HTMLButtonElement[]; index: number; viewport: HTMLElement|null; track: HTMLElement|null; navPrev: HTMLButtonElement|null; navNext: HTMLButtonElement|null; confirmBtn: HTMLButtonElement|null } | null} */
@@ -107,7 +116,7 @@ function startLoadingTips() {
   if (!tipEl) return;
   stopLoadingTips();
   loadingTipsIdx = 0;
-  tipEl.textContent = LOADING_TIPS[0] ?? "";
+  tipEl.textContent = t(LOADING_TIP_KEYS[0] ?? "") ?? "";
 
   loadingTipsTimer = window.setInterval(() => {
     const el = document.getElementById("loading-tip");
@@ -117,8 +126,8 @@ function startLoadingTips() {
     }
     el.classList.add("loading-tip--fade");
     window.setTimeout(() => {
-      loadingTipsIdx = (loadingTipsIdx + 1) % LOADING_TIPS.length;
-      el.textContent = LOADING_TIPS[loadingTipsIdx] ?? "";
+      loadingTipsIdx = (loadingTipsIdx + 1) % LOADING_TIP_KEYS.length;
+      el.textContent = t(LOADING_TIP_KEYS[loadingTipsIdx] ?? "") ?? "";
       el.classList.remove("loading-tip--fade");
     }, 220);
   }, 3200);
@@ -193,7 +202,7 @@ function enterModeSelect(mode) {
   gameMode = mode;
   const playersBadge = document.getElementById("mode-select-players");
   if (playersBadge) {
-    playersBadge.textContent = mode === "single" ? "1 Player" : "2 Players";
+    playersBadge.textContent = mode === "single" ? t("players.one") : t("players.two");
   }
   setPhase("mode-select");
 }
@@ -227,7 +236,7 @@ function isLocalDebugAllowed() {
 function enterQuickPlay() {
   const playersBadge = document.getElementById("quick-play-players");
   if (playersBadge) {
-    playersBadge.textContent = gameMode === "single" ? "1 Player" : "2 Players";
+    playersBadge.textContent = gameMode === "single" ? t("players.one") : t("players.two");
   }
   setPhase("quick-play");
 }
@@ -238,7 +247,7 @@ function enterQuickPlay() {
 function enterGameSelect() {
   const playersBadge = document.getElementById("game-select-players");
   if (playersBadge) {
-    playersBadge.textContent = gameMode === "single" ? "1 Player" : "2 Players";
+    playersBadge.textContent = gameMode === "single" ? t("players.one") : t("players.two");
   }
   setPhase("game-select");
   requestAnimationFrame(() => {
@@ -613,7 +622,8 @@ function showResultsPanel(result) {
     document.getElementById("input-record-name")
   );
   const actions = panelResults?.querySelector(".panel-results__actions");
-  if (resultsTitle) resultsTitle.textContent = "Resultado";
+  // O título base vem do HTML via i18n; aqui garantimos consistência em runtime.
+  if (resultsTitle) resultsTitle.textContent = t("results.title");
   if (resultsBody) resultsBody.textContent = formatResultsText(result);
 
   const showRecord = pendingHighScore !== null;
@@ -741,9 +751,9 @@ function hideResultsPanel() {
   pendingHighScore = null;
 }
 
-/** Texto fixo no painel de calibração antes da deteção estável. */
-const DETECTION_STATUS_BASE =
-  "Mostre as mãos para detetar.";
+function getDetectionStatusBase() {
+  return t("detection.status.base");
+}
 
 function stopCameraSession() {
   hideDebugDetectionPanel();
@@ -826,7 +836,7 @@ function enterReadyArena(mode) {
   }
 
   if (statusText) {
-    statusText.textContent = DETECTION_STATUS_BASE;
+    statusText.textContent = getDetectionStatusBase();
   }
 
   function setCameraLoading(on, text) {
@@ -874,7 +884,7 @@ function enterReadyArena(mode) {
       overlayCanvas: overlayDetection,
       gameMode: mode,
       statusTextEl: statusText ?? undefined,
-      statusBaseText: DETECTION_STATUS_BASE,
+      statusBaseText: getDetectionStatusBase(),
       onReady() {
         if (readyCountdownLock || !overlayCountdown) return;
         readyCountdownLock = true;
@@ -907,8 +917,7 @@ function enterReadyArena(mode) {
   async function startCameraAndArena() {
     if (!isCameraContextOk()) {
       if (statusText) {
-        statusText.textContent =
-          "A câmera precisa de HTTPS ou localhost. Abra o site em https:// para calibrar.";
+        statusText.textContent = t("detection.error.https");
       }
       return;
     }
@@ -918,21 +927,20 @@ function enterReadyArena(mode) {
     }
     try {
       if (!videoEl.srcObject) {
-        setCameraLoading(true, "Carregando câmera…");
+        setCameraLoading(true, t("detection.cameraLoading"));
         await setupCamera(videoEl);
       }
       await waitForCameraPicture(videoEl);
       cameraAvailable = true;
       setCameraLoading(false);
-      if (statusText) statusText.textContent = DETECTION_STATUS_BASE;
+      if (statusText) statusText.textContent = getDetectionStatusBase();
       startInferenceLoop(videoEl);
       startArenaUi();
     } catch {
       cameraAvailable = false;
       setCameraLoading(false);
       if (statusText) {
-        statusText.textContent =
-          "Não foi possível usar a câmera. Verifique as permissões do navegador e tente novamente.";
+        statusText.textContent = t("detection.error.permissions");
       }
       if (btnCameraStart) btnCameraStart.disabled = false;
     }
@@ -945,16 +953,16 @@ function enterReadyArena(mode) {
     if (btnCameraStart) {
       btnCameraStart.hidden = false;
       btnCameraStart.disabled = false;
-      setCameraLoading(true, "Toque em “Permitir câmera” para continuar");
+      setCameraLoading(true, t("detection.tapToAllow"));
       btnCameraStart.onclick = async () => {
         btnCameraStart.disabled = true;
-        if (statusText) statusText.textContent = "Abrindo câmera…";
-        setCameraLoading(true, "Carregando câmera…");
+        if (statusText) statusText.textContent = t("detection.openingCamera");
+        setCameraLoading(true, t("detection.cameraLoading"));
         await startCameraAndArena();
         if (cameraAvailable) {
           btnCameraStart.hidden = true;
           setCameraLoading(false);
-          if (statusText) statusText.textContent = DETECTION_STATUS_BASE;
+          if (statusText) statusText.textContent = getDetectionStatusBase();
         }
       };
     } else {
@@ -1233,7 +1241,7 @@ async function boot() {
   const videoEl = document.getElementById("camera");
 
   if (!videoEl) {
-    setLoadingStatus("Erro: câmera não encontrada no DOM.", { show: true });
+    setLoadingStatus(t("loading.error.noCameraDom"), { show: true });
     stopLoadingTips();
     return;
   }
@@ -1249,7 +1257,7 @@ async function boot() {
   // Aqui apenas verificamos se o contexto é válido (HTTPS/localhost) e carregamos o modelo.
   if (!isCameraContextOk()) {
     setLoadingStatus(
-      "A câmera precisa de HTTPS ou localhost. Quando for calibrar, abra o site em https:// (ou localhost).",
+      t("loading.error.httpsNeeded"),
       { show: true },
     );
   }
@@ -1261,18 +1269,18 @@ async function boot() {
   try {
     await initPoseBackend();
   } catch {
-    setLoadingStatus("Falha ao carregar o modelo. Recarregue a página.", { show: true });
+    setLoadingStatus(t("loading.error.modelFail"), { show: true });
     stopLoadingTips();
     return;
   }
 
   if (homeStatus) {
-    homeStatus.textContent = "Escolha um ou dois jogadores.";
+    homeStatus.textContent = t("home.status.ready");
   }
   // Final do loading: parar dicas, mostrar "Pronto", esperar 1s e só então transicionar.
   stopLoadingTips();
   document.getElementById("screen-loading")?.classList.add("screen-loading--ready");
-  setLoadingStatus("Pronto!", { show: true });
+  setLoadingStatus(t("loading.ready"), { show: true });
   await new Promise((r) => setTimeout(r, 3000));
 
   runUiScreenSwap("home", () => {
@@ -1292,6 +1300,19 @@ function wireEvents() {
   const btnResultsRestart = document.getElementById("btn-results-restart");
   const btnResultsHome = document.getElementById("btn-results-home");
   const btnGlobalFullscreen = document.getElementById("btn-global-fullscreen");
+  const btnGlobalOptions = document.getElementById("btn-global-options");
+  const optionsModal = document.getElementById("options-modal");
+  const optionsLang = /** @type {HTMLSelectElement|null} */ (
+    document.getElementById("options-language")
+  );
+  const optionsBg = /** @type {HTMLInputElement|null} */ (
+    document.getElementById("options-bg-volume")
+  );
+  const optionsSfx = /** @type {HTMLInputElement|null} */ (
+    document.getElementById("options-sfx-volume")
+  );
+  const optionsBgValue = document.getElementById("options-bg-volume-value");
+  const optionsSfxValue = document.getElementById("options-sfx-volume-value");
 
   function isFullscreen() {
     return Boolean(document.fullscreenElement);
@@ -1307,7 +1328,10 @@ function wireEvents() {
   function syncGlobalFullscreenButton() {
     if (!btnGlobalFullscreen) return;
     const on = isFullscreen();
-    btnGlobalFullscreen.setAttribute("aria-label", on ? "Sair da tela cheia" : "Tela cheia");
+    btnGlobalFullscreen.setAttribute(
+      "aria-label",
+      on ? t("global.fullscreen.exit") : t("global.fullscreen.enter"),
+    );
     btnGlobalFullscreen.innerHTML = on ? ICON_EXIT : ICON_ENTER;
   }
 
@@ -1326,6 +1350,66 @@ function wireEvents() {
     } finally {
       syncGlobalFullscreenButton();
     }
+  });
+
+  function setOptionsOpen(open) {
+    if (!optionsModal) return;
+    optionsModal.hidden = !open;
+    if (open) {
+      // Garante que os controles reflitam o estado atual.
+      syncOptionsFromPrefs();
+      try {
+        optionsLang?.focus?.();
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  function syncOptionsFromPrefs() {
+    const p = getUserPrefs();
+    if (optionsLang) optionsLang.value = p.language;
+    if (optionsBg) optionsBg.value = String(Math.round((p.bgVolume ?? 0) * 100));
+    if (optionsSfx) optionsSfx.value = String(Math.round((p.sfxVolume ?? 0) * 100));
+    if (optionsBgValue) optionsBgValue.textContent = `${optionsBg?.value ?? "0"}%`;
+    if (optionsSfxValue) optionsSfxValue.textContent = `${optionsSfx?.value ?? "0"}%`;
+  }
+
+  // Botão global abre o modal.
+  btnGlobalOptions?.addEventListener("click", () => setOptionsOpen(true));
+
+  // Fechar (backdrop e botões com data-options-close).
+  optionsModal?.querySelectorAll?.("[data-options-close]")?.forEach((el) => {
+    el.addEventListener("click", () => setOptionsOpen(false));
+  });
+
+  // Escape fecha.
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (optionsModal && !optionsModal.hidden) setOptionsOpen(false);
+  });
+
+  optionsLang?.addEventListener("change", () => {
+    setLanguage(optionsLang.value);
+  });
+
+  optionsBg?.addEventListener("input", () => {
+    const pct = Number.parseInt(optionsBg.value, 10);
+    const v = Number.isFinite(pct) ? pct / 100 : 0;
+    setBgVolume(v);
+    if (optionsBgValue) optionsBgValue.textContent = `${optionsBg.value}%`;
+  });
+
+  optionsSfx?.addEventListener("input", () => {
+    const pct = Number.parseInt(optionsSfx.value, 10);
+    const v = Number.isFinite(pct) ? pct / 100 : 0;
+    setSfxVolume(v);
+    if (optionsSfxValue) optionsSfxValue.textContent = `${optionsSfx.value}%`;
+  });
+
+  // Mantém UI do modal em sync se prefs mudarem por outros meios.
+  subscribeUserPrefs(() => {
+    syncOptionsFromPrefs();
   });
 
   btnModeSingle?.addEventListener("click", () => {
@@ -1622,6 +1706,10 @@ async function init() {
   }
   try {
     await mountScreens(root);
+    // i18n: aplica nas telas carregadas + mantém sincronizado com prefs.
+    bindI18nAutoApply();
+    // áudio: sincroniza volumes (SFX/BG) com prefs.
+    bindAudioPrefsAutoSync();
     // Ao sair do splash, faz o loading “entrar” com a mesma animação dos menus.
     // O body já começa em phase-loading no index.html; aqui só disparamos a animação de entrada.
     document.body.classList.add("ui-transition-enter");

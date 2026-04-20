@@ -2,7 +2,7 @@
   <header class="ranking-top-bar" aria-label="Navegação">
     <div class="ranking-top-bar__left">
       <button type="button" id="btn-ranking-back" class="btn-screen-back ranking-top-bar__back">
-        Voltar
+        <span data-i18n="nav.back">Voltar</span>
       </button>
     </div>
     <div class="ranking-top-bar__center"></div>
@@ -13,8 +13,9 @@
     class="ranking-view ranking-view--list"
     id="ranking-view-list"
     aria-label="Selecione um minigame"
+    data-i18n-aria-label="ranking.list.aria"
   >
-    <h1 class="ranking-title">Ranking</h1>
+    <h1 class="ranking-title" data-i18n="ranking.title">Ranking</h1>
     <ul class="ranking-game-list" role="list">
       <li class="ranking-game-item">
         <button
@@ -30,7 +31,6 @@
               decoding="async"
             />
           </span>
-          <span class="game-card__desc">Quebra-blocos</span>
         </button>
       </li>
       <li class="ranking-game-item">
@@ -47,7 +47,6 @@
               decoding="async"
             />
           </span>
-          <span class="game-card__desc">Limpeza</span>
         </button>
       </li>
       <li class="ranking-game-item">
@@ -64,7 +63,6 @@
               decoding="async"
             />
           </span>
-          <span class="game-card__desc">Coleta</span>
         </button>
       </li>
     </ul>
@@ -74,6 +72,7 @@
     class="ranking-view ranking-view--detail"
     id="ranking-view-detail"
     aria-label="Top 10"
+    data-i18n-aria-label="ranking.detail.aria"
     hidden
   >
     <div class="ranking-detail-header">
@@ -84,10 +83,9 @@
         alt=""
         decoding="async"
       />
-      <h2 id="ranking-detail-title" class="ranking-detail-title">Minigame</h2>
     </div>
     <ol id="ranking-detail-list" class="ranking-list" role="list"></ol>
-    <p id="ranking-detail-empty" class="ranking-empty" hidden>
+    <p id="ranking-detail-empty" class="ranking-empty" hidden data-i18n="ranking.empty">
       Ainda sem recordes. Jogue em Um jogador para começar!
     </p>
   </section>

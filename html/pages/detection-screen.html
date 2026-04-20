@@ -1,17 +1,18 @@
 <div id="screen-detection" class="screen screen-detection">
   <button type="button" id="btn-detection-back" class="btn-screen-back">
-    Voltar
+    <span data-i18n="nav.back">Voltar</span>
   </button>
   <div
     id="detection-controls-panel"
     class="game-panel game-panel--detection detection-controls-panel debug-detection-panel--dock"
   >
     <div class="detection-controls-panel__fit">
-      <p class="detection-panel__title">Visualização da câmera</p>
+      <p class="detection-panel__title" data-i18n="detection.cameraView">Visualização da câmera</p>
       <div
         class="camera-fit-toggle camera-fit-toggle--panel"
         role="group"
         aria-label="Tipo de visualização da câmera"
+        data-i18n-aria-label="detection.fit.group"
       >
         <button
           type="button"
@@ -19,6 +20,7 @@
           class="camera-fit-toggle__btn"
           aria-pressed="true"
           aria-label="Proporção da câmera"
+          data-i18n-aria-label="detection.fit.contain.aria"
         >
           <svg
             class="camera-fit-toggle__icon"
@@ -33,7 +35,7 @@
             <rect x="4" y="5" width="16" height="14" rx="2.5" stroke="currentColor" stroke-width="2" />
             <rect x="7" y="8" width="10" height="8" rx="1.5" stroke="currentColor" stroke-width="2" opacity="0.65" />
           </svg>
-          <span class="camera-fit-toggle__label">Proporção</span>
+          <span class="camera-fit-toggle__label" data-i18n="detection.fit.contain">Proporção</span>
         </button>
         <button
           type="button"
@@ -41,6 +43,7 @@
           class="camera-fit-toggle__btn"
           aria-pressed="false"
           aria-label="Tela cheia"
+          data-i18n-aria-label="detection.fit.cover.aria"
         >
           <svg
             class="camera-fit-toggle__icon"
@@ -59,14 +62,14 @@
               stroke-linecap="round"
             />
           </svg>
-          <span class="camera-fit-toggle__label">Tela cheia</span>
+          <span class="camera-fit-toggle__label" data-i18n="detection.fit.cover">Tela cheia</span>
         </button>
       </div>
     </div>
     <div id="debug-detection-extra" class="debug-detection-extra" hidden>
-      <p class="detection-panel__title">Debug — detecção</p>
+      <p class="detection-panel__title" data-i18n="detection.debug.title">Debug — detecção</p>
       <label class="debug-detection-panel__label" for="debug-detection-score">
-        Confiança mínima dos pontos (score)
+        <span data-i18n="detection.debug.minScore">Confiança mínima dos pontos (score)</span>
       </label>
       <div class="debug-detection-panel__row">
         <input
@@ -81,6 +84,7 @@
           aria-valuemax="100"
           aria-valuenow="25"
           aria-label="Confiança mínima da detecção"
+          data-i18n-aria-label="detection.debug.sliderAria"
         />
         <output id="debug-detection-score-value" class="debug-detection-panel__value" for="debug-detection-score"
           >0.25</output
@@ -94,7 +98,7 @@
             class="debug-detection-checkbox"
             checked
           />
-          <span>Sprites das mãos (Quebra-blocos)</span>
+          <span data-i18n="detection.debug.handSprites">Sprites das mãos (Quebra-blocos)</span>
         </label>
       </div>
     </div>
@@ -116,7 +120,7 @@
       <div class="detection-camera-loading__card" role="status" aria-live="polite">
         <span class="detection-camera-loading__spinner" aria-hidden="true"></span>
         <span class="detection-camera-loading__text" data-camera-loading-text>
-          Carregando câmera…
+          <span data-i18n="detection.cameraLoading">Carregando câmera…</span>
         </span>
       </div>
     </div>
@@ -132,7 +136,7 @@
           class="btn-home btn-camera-start"
           hidden
         >
-          Permitir câmera
+          <span data-i18n="detection.allowCamera">Permitir câmera</span>
         </button>
       </div>
     </div>
