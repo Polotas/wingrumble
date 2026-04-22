@@ -23,9 +23,10 @@ import { createBlockBreakerGame } from "./games/blockBreaker/blockBreakerGame.js
 import { createCleanGame } from "./games/cleanScreen/cleanGame.js";
 import { createCollectGame } from "./games/collect/collectGame.js";
 import { runEndCountdown, runStartCountdown } from "./ui/countdown.js";
+import { runBlockBreakerTutorialOverlay } from "./ui/blockBreakerTutorialOverlay.js";
 import { runVictorySequence } from "./ui/victorySequence.js";
 import { bindI18nAutoApply, t } from "./core/i18n.js";
-import { bindAudioPrefsAutoSync } from "./core/audioMixer.js";
+import { bindAudioPrefsAutoSync, startBgMusicSmooth, stopBgMusicSmooth } from "./core/audioMixer.js";
 import {
   getUserPrefs,
   setBgVolume,
@@ -105,6 +106,30 @@ let detectionReturnPhase = "game-select";
 const debugScoreThresholdRef = { value: 0.25 };
 /** Cleanup dos botões contain/cover no modo debug (sem `readyArena`). */
 let debugCameraFitUnbind = null;
+
+const BLOCKBREAKER_BG_MUSIC_URL = new URL(
+  "../assets/audios/BlockBreaker/audio_bg.mp3",
+  import.meta.url,
+).href;
+
+async function maybeRunBlockBreakerTutorial() {
+  if (selectedGameId !== "blockBreaker") return;
+  const wrapEl = document.getElementById("overlay-blockbreaker-tutorial-wrap");
+  const imgEl = /** @type {HTMLImageElement|null} */ (
+    document.getElementById("overlay-blockbreaker-tutorial-img")
+  );
+  const textEl = document.getElementById("overlay-blockbreaker-tutorial-text");
+  const timerEl = document.getElementById("overlay-blockbreaker-tutorial-timer");
+  if (!wrapEl || !imgEl || !timerEl) return;
+  await runBlockBreakerTutorialOverlay({
+    wrapEl,
+    imgEl,
+    textEl: textEl ?? undefined,
+    timerEl,
+    durationMs: 5000,
+    swapMs: 1000,
+  });
+}
 
 function stopLoadingTips() {
   if (loadingTipsTimer) window.clearInterval(loadingTipsTimer);
@@ -605,11 +630,78 @@ let pendingHighScore = null;
  * @param {number} score
  * @param {number} timeSec
  */
-function formatNewRecordSummary(gameId, score, timeSec) {
+function formatScoreSub(gameId, score, timeSec) {
   if (gameId === "blockBreaker") {
-    return `${score} pontos • ${timeSec.toFixed(2)} s`;
+    return `em ${timeSec.toFixed(2)} s`;
   }
-  return `${score} pontos`;
+  return "";
+}
+
+/**
+ * @param {number} score
+ */
+function formatScoreBig(score) {
+  const n = Math.round(score);
+  return `${n} ${n === 1 ? "ponto" : "pontos"}`;
+}
+
+/**
+ * Projeta a posição (1-based) que o candidato assumiria no Top 10.
+ * Replica a ordenação de `rankingStorage.compareEntries`.
+ * @param {"blockBreaker"|"cleanScreen"|"collect"} gameId
+ * @param {{ score: number, timeSec: number }} candidate
+ * @returns {number} posição 1..10, ou 0 se não entra no Top 10
+ */
+function projectRank(gameId, candidate) {
+  const list = getTopScores(gameId);
+  let pos = 1;
+  for (const e of list) {
+    const dScore = (e.score ?? 0) - (candidate.score ?? 0);
+    if (dScore > 0) {
+      pos += 1;
+      continue;
+    }
+    if (dScore === 0 && gameId === "blockBreaker") {
+      if ((e.timeSec ?? 0) < (candidate.timeSec ?? 0)) {
+        pos += 1;
+        continue;
+      }
+    }
+    break;
+  }
+  return pos <= 10 ? pos : 0;
+}
+
+/**
+ * @param {number} rank  posição 1..10
+ */
+function medalClassFor(rank) {
+  if (rank === 1) return "panel-results__medal--gold";
+  if (rank === 2) return "panel-results__medal--silver";
+  if (rank === 3) return "panel-results__medal--bronze";
+  return "panel-results__medal--neutral";
+}
+
+/**
+ * @param {number} rank
+ */
+function setMedalRank(rank) {
+  const medalEl = document.getElementById("panel-results-medal");
+  if (!(medalEl instanceof HTMLElement)) return;
+  medalEl.textContent = String(rank);
+  medalEl.setAttribute("data-rank", String(rank));
+  medalEl.classList.remove(
+    "panel-results__medal--gold",
+    "panel-results__medal--silver",
+    "panel-results__medal--bronze",
+    "panel-results__medal--neutral",
+  );
+  medalEl.classList.add(medalClassFor(rank));
+  // Reinicia a animação de entrada trocando o nó visualmente (clonar classList).
+  medalEl.style.animation = "none";
+  // Força reflow
+  void medalEl.offsetHeight;
+  medalEl.style.animation = "";
 }
 
 function showResultsPanel(result) {
@@ -618,26 +710,43 @@ function showResultsPanel(result) {
   const panelResults = document.getElementById("panel-results");
   const newRecord = document.getElementById("panel-results-new-record");
   const newRecordSummary = document.getElementById("panel-results-new-record-summary");
+  const scoreBig = document.getElementById("panel-results-score-big");
+  const form = document.getElementById("panel-results-form");
+  const saved = document.getElementById("panel-results-saved");
   const nameInput = /** @type {HTMLInputElement|null} */ (
     document.getElementById("input-record-name")
   );
   const actions = panelResults?.querySelector(".panel-results__actions");
-  // O título base vem do HTML via i18n; aqui garantimos consistência em runtime.
   if (resultsTitle) resultsTitle.textContent = t("results.title");
   if (resultsBody) resultsBody.textContent = formatResultsText(result);
 
   const showRecord = pendingHighScore !== null;
   if (newRecord) newRecord.hidden = !showRecord;
   if (resultsBody) resultsBody.hidden = showRecord;
-  if (actions instanceof HTMLElement) actions.hidden = showRecord;
-
-  if (showRecord && pendingHighScore && newRecordSummary) {
-    newRecordSummary.textContent = formatNewRecordSummary(
-      pendingHighScore.gameId,
-      pendingHighScore.score,
-      pendingHighScore.timeSec,
-    );
+  if (actions instanceof HTMLElement) {
+    actions.hidden = showRecord;
+    actions.classList.remove("panel-results__actions--fade-in");
   }
+
+  if (showRecord && pendingHighScore) {
+    const rank = projectRank(pendingHighScore.gameId, {
+      score: pendingHighScore.score,
+      timeSec: pendingHighScore.timeSec,
+    });
+    const safeRank = rank > 0 ? rank : 1;
+    setMedalRank(safeRank);
+    if (scoreBig) scoreBig.textContent = formatScoreBig(pendingHighScore.score);
+    if (newRecordSummary) {
+      newRecordSummary.textContent = formatScoreSub(
+        pendingHighScore.gameId,
+        pendingHighScore.score,
+        pendingHighScore.timeSec,
+      );
+    }
+    if (form) form.hidden = false;
+    if (saved) saved.hidden = true;
+  }
+
   if (showRecord && nameInput) {
     nameInput.value = "";
     requestAnimationFrame(() => {
@@ -660,6 +769,14 @@ function showResultsPanel(result) {
 
 /** Confetes + título + coroa; depois o painel de resultados. */
 function handleGameFinish(result) {
+  // BlockBreaker: desliga BG suavemente ao acabar a partida.
+  if (result?.gameId === "blockBreaker") {
+    try {
+      stopBgMusicSmooth({ fadeMs: 850 });
+    } catch {
+      /* ignore */
+    }
+  }
   const videoEl = video ?? document.getElementById("camera");
   pendingHighScore = null;
   if (!quickPlay.active) {
@@ -732,7 +849,15 @@ function handleGameFinish(result) {
           await goToGame({ startPaused: true });
           if (overlayCountdown) {
             setGlobalFullscreenLocked(true);
+            await maybeRunBlockBreakerTutorial();
             await runStartCountdown(overlayCountdown, { wrapEl: overlayCountdownWrap ?? undefined });
+          }
+          if (selectedGameId === "blockBreaker") {
+            try {
+              startBgMusicSmooth(BLOCKBREAKER_BG_MUSIC_URL, { fadeMs: 1000, baseVolume: 1 });
+            } catch {
+              /* ignore */
+            }
           }
           currentGame?.resumeGameplay?.();
         } catch {
@@ -900,9 +1025,18 @@ function enterReadyArena(mode) {
         void (async () => {
           try {
             await goToGame({ startPaused: true });
+            setGlobalFullscreenLocked(true);
+            await maybeRunBlockBreakerTutorial();
             await runStartCountdown(overlayCountdown, {
               wrapEl: wrapEl ?? undefined,
             });
+            if (selectedGameId === "blockBreaker") {
+              try {
+                startBgMusicSmooth(BLOCKBREAKER_BG_MUSIC_URL, { fadeMs: 1000, baseVolume: 1 });
+              } catch {
+                /* ignore */
+              }
+            }
             currentGame?.resumeGameplay?.();
           } finally {
             readyCountdownLock = false;
@@ -1203,6 +1337,12 @@ async function startCollectGame(opts = {}) {
  */
 async function goToGame(opts = {}) {
   const { startPaused = false } = opts;
+  // Garante que não fica música "presa" ao trocar de minigame.
+  try {
+    stopBgMusicSmooth({ fadeMs: 500 });
+  } catch {
+    /* ignore */
+  }
   switch (selectedGameId) {
     case "sprint100m":
       await startSprintGame({ startPaused });
@@ -1638,23 +1778,50 @@ function wireEvents() {
     document.getElementById("input-record-name")
   );
 
-  function commitPendingHighScore() {
+  /**
+   * @param {{ animate?: boolean }} [opts]
+   */
+  function commitPendingHighScore(opts = {}) {
     if (!pendingHighScore) return;
+    const animate = opts.animate !== false;
     const rawName = inputRecordName?.value ?? "";
     const name = sanitizeName(rawName);
-    saveScore(pendingHighScore.gameId, {
+    const { rank } = saveScore(pendingHighScore.gameId, {
       name,
       score: pendingHighScore.score,
       timeSec: pendingHighScore.timeSec,
     });
     pendingHighScore = null;
-    const newRecord = document.getElementById("panel-results-new-record");
-    const bodyEl = document.getElementById("results-body");
+
     const panel = document.getElementById("panel-results");
     const actions = panel?.querySelector(".panel-results__actions");
-    if (newRecord) newRecord.hidden = true;
-    if (bodyEl) bodyEl.hidden = false;
-    if (actions instanceof HTMLElement) actions.hidden = false;
+    const form = document.getElementById("panel-results-form");
+    const saved = document.getElementById("panel-results-saved");
+    const savedText = document.getElementById("panel-results-saved-text");
+
+    if (!animate) {
+      // Fluxo alternativo (restart/home): painel vai fechar; apenas resetamos estado.
+      if (form) form.hidden = true;
+      if (saved) saved.hidden = false;
+      if (actions instanceof HTMLElement) actions.hidden = false;
+      return;
+    }
+
+    if (rank > 0) setMedalRank(rank);
+
+    if (form) form.hidden = true;
+    if (saved) {
+      saved.hidden = false;
+      if (savedText) {
+        savedText.textContent = t("results.savedAs").replace("{name}", name);
+      }
+    }
+    if (actions instanceof HTMLElement) {
+      actions.hidden = false;
+      actions.classList.remove("panel-results__actions--fade-in");
+      void actions.offsetHeight;
+      actions.classList.add("panel-results__actions--fade-in");
+    }
   }
 
   btnRecordSave?.addEventListener("click", () => {
@@ -1670,7 +1837,7 @@ function wireEvents() {
 
   btnResultsRestart?.addEventListener("click", async () => {
     if (!overlayCountdown) return;
-    if (pendingHighScore) commitPendingHighScore();
+    if (pendingHighScore) commitPendingHighScore({ animate: false });
     hideResultsPanel();
     setGlobalFullscreenLocked(true);
     if (currentGame) {
@@ -1678,14 +1845,22 @@ function wireEvents() {
       currentGame = null;
     }
     await goToGame({ startPaused: true });
+    await maybeRunBlockBreakerTutorial();
     await runStartCountdown(overlayCountdown, {
       wrapEl: overlayCountdownWrap ?? undefined,
     });
+    if (selectedGameId === "blockBreaker") {
+      try {
+        startBgMusicSmooth(BLOCKBREAKER_BG_MUSIC_URL, { fadeMs: 1000, baseVolume: 1 });
+      } catch {
+        /* ignore */
+      }
+    }
     currentGame?.resumeGameplay?.();
   });
 
   btnResultsHome?.addEventListener("click", () => {
-    if (pendingHighScore) commitPendingHighScore();
+    if (pendingHighScore) commitPendingHighScore({ animate: false });
     if (currentGame) {
       currentGame.stop();
       currentGame = null;

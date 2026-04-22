@@ -1,0 +1,32 @@
+---
+description: Sempre que adicionar texto novo na UI, adicionar chave no i18n
+alwaysApply: true
+---
+
+# Regra: todo texto novo deve passar pelo i18n
+
+Sempre que você (ou eu) **adicionar um texto novo visível ao jogador** (UI/overlay/botões/mensagens/banners), faça também:
+
+- Criar uma **chave** no dicionário em `js/core/i18n.js` para **pt-BR** e **en**
+- Usar essa chave no código via `t("...")` ou no HTML via `data-i18n="..."`
+
+## Exemplos
+
+### HTML
+
+```html
+<div data-i18n="games.blockBreaker.tutorial"></div>
+```
+
+### JavaScript
+
+```js
+import { t } from "../core/i18n.js";
+
+el.textContent = t("games.blockBreaker.tutorial");
+```
+
+## Observações
+
+- Não introduza strings hardcoded em UI/overlays (exceto logs internos).
+- Para textos dinâmicos (com números), prefira compor com `t(...)` + interpolação simples.

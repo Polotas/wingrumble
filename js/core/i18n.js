@@ -60,6 +60,7 @@ const DICT = {
     // Game descriptions / names / alts
     "games.blockBreaker.alt": "Quebra-blocos",
     "games.blockBreaker.desc": "Destrua 6 blocos com as mãos — no duo, cooperativo no mesmo conjunto",
+    "games.blockBreaker.tutorial": "Movimenta as mãos para destruir",
     "games.cleanScreen.alt": "Limpeza",
     "games.cleanScreen.desc": "Faça círculos com as mãos para limpar manchas",
     "games.collect.alt": "Coleta",
@@ -70,6 +71,9 @@ const DICT = {
     // Results panel
     "results.title": "Resultado",
     "results.newRecord": "Novo Recorde!",
+    "results.rankLabel": "Sua posição no Top 10",
+    "results.enteredTop": "Você entrou no Top 10!",
+    "results.savedAs": "Salvo como {name}",
     "results.yourName": "Seu nome",
     "results.namePlaceholder": "Digite seu nome",
     "results.save": "Salvar recorde",
@@ -153,6 +157,7 @@ const DICT = {
     // Game descriptions / names / alts
     "games.blockBreaker.alt": "Block Breaker",
     "games.blockBreaker.desc": "Break 6 blocks with your hands — in duo, both players cooperate on the same set",
+    "games.blockBreaker.tutorial": "Move your hands to destroy",
     "games.cleanScreen.alt": "Cleaning",
     "games.cleanScreen.desc": "Make circles with your hands to clean stains",
     "games.collect.alt": "Collect",
@@ -163,6 +168,9 @@ const DICT = {
     // Results panel
     "results.title": "Results",
     "results.newRecord": "New Record!",
+    "results.rankLabel": "Your Top 10 rank",
+    "results.enteredTop": "You made the Top 10!",
+    "results.savedAs": "Saved as {name}",
     "results.yourName": "Your name",
     "results.namePlaceholder": "Type your name",
     "results.save": "Save record",

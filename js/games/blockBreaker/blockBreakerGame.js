@@ -1306,6 +1306,11 @@ export function createBlockBreakerGame(canvas, options = {}) {
       const drawX = b.x + ox;
       const drawY = b.y + oy;
       const img = gelSprite;
+      const hpRatio = Math.max(0, Math.min(1, (b.hp || 0) / Math.max(1, b.maxHp || 1)));
+      // 0 = intacto, 1 = totalmente danificado. Quanto maior, mais transparente fica o bloco.
+      const damage = 1 - hpRatio;
+      // Alpha do bloco: interpola entre 1.0 (intacto) e 0.4 (próximo de quebrar).
+      const blockAlpha = Math.max(0.4, 1 - damage * 0.6);
       if (img && img.complete && img.naturalWidth >= 1) {
         const cx = drawX + b.w / 2;
         const cy = drawY + b.h / 2;
@@ -1334,15 +1339,16 @@ export function createBlockBreakerGame(canvas, options = {}) {
         ctx.translate(cx, cy);
         ctx.rotate(b.renderRot || 0);
         ctx.transform(1, 0, shear, 1, 0, 0);
+        ctx.globalAlpha = blockAlpha;
         ctx.drawImage(img, -rw / 2, -rh / 2, rw, rh);
         // Tint da gelatina (sprite em tons de cinza).
         ctx.globalCompositeOperation = "source-atop";
-        ctx.globalAlpha = 0.72;
+        ctx.globalAlpha = 0.72 * blockAlpha;
         ctx.fillStyle = b.tint || "#94a3b8";
         ctx.fillRect(-rw / 2, -rh / 2, rw, rh);
         // Preserva sombras/contraste do sprite
         ctx.globalCompositeOperation = "multiply";
-        ctx.globalAlpha = 0.32;
+        ctx.globalAlpha = 0.32 * blockAlpha;
         ctx.fillStyle = b.tint || "#94a3b8";
         ctx.fillRect(-rw / 2, -rh / 2, rw, rh);
         ctx.restore();
@@ -1352,6 +1358,8 @@ export function createBlockBreakerGame(canvas, options = {}) {
           : b.owner === 0
             ? 188 + (i % 4) * 14
             : 22 + (i % 4) * 12;
+        ctx.save();
+        ctx.globalAlpha = blockAlpha;
         ctx.fillStyle = b.tint || `hsl(${hue} 62% 48%)`;
         ctx.strokeStyle = "rgba(255,255,255,0.35)";
         ctx.lineWidth = 2;
@@ -1364,6 +1372,7 @@ export function createBlockBreakerGame(canvas, options = {}) {
         }
         ctx.fill();
         ctx.stroke();
+        ctx.restore();
       }
 
       if (nowMs < b.hitFlashUntil) {
@@ -1373,23 +1382,6 @@ export function createBlockBreakerGame(canvas, options = {}) {
         ctx.strokeStyle = `rgba(255, 220, 120, ${flashA * 0.85})`;
         ctx.lineWidth = 3;
         ctx.strokeRect(drawX + 1, drawY + 1, b.w - 2, b.h - 2);
-      }
-
-      const barW = b.w * 0.55;
-      const barH = 5;
-      const barX = drawX + (b.w - barW) / 2;
-      const barY = drawY + b.h - 12;
-      ctx.fillStyle = "rgba(0,0,0,0.35)";
-      ctx.fillRect(barX, barY, barW, barH);
-      const seg = barW / b.maxHp;
-      for (let s = 0; s < b.maxHp; s += 1) {
-        const filled = s < b.hp;
-        const fillCol =
-          single || b.owner === 0
-            ? "rgba(52, 211, 153, 0.95)"
-            : "rgba(251, 146, 60, 0.95)";
-        ctx.fillStyle = filled ? fillCol : "rgba(255,255,255,0.15)";
-        ctx.fillRect(barX + s * seg + 1, barY + 1, seg - 2, barH - 2);
       }
     }
   }

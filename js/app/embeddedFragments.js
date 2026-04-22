@@ -551,6 +551,32 @@ export const EMBEDDED_FRAGMENTS = [
   ></div>
 </div>`,
   `<div
+  id="overlay-blockbreaker-tutorial-wrap"
+  class="overlay-bb-tutorial-wrap"
+  aria-hidden="true"
+>
+  <div class="overlay-bb-tutorial-dim" aria-hidden="true"></div>
+  <div class="overlay-bb-tutorial">
+    <div
+      id="overlay-blockbreaker-tutorial-text"
+      class="overlay-bb-tutorial__text"
+      role="status"
+      data-i18n="games.blockBreaker.tutorial"
+    ></div>
+    <img
+      id="overlay-blockbreaker-tutorial-img"
+      class="overlay-bb-tutorial__img"
+      src=""
+      alt="Tutorial do Quebra-blocos"
+      decoding="async"
+      aria-hidden="true"
+    />
+    <div id="overlay-blockbreaker-tutorial-timer" class="overlay-bb-tutorial__timer" aria-hidden="true">
+      3
+    </div>
+  </div>
+</div>`,
+  `<div
   id="panel-results"
   class="panel-results"
   hidden
@@ -562,24 +588,40 @@ export const EMBEDDED_FRAGMENTS = [
     <div class="game-panel game-panel--results panel-results__card">
       <h2 id="results-title" class="panel-results__title" data-i18n="results.title">Resultado</h2>
       <div id="panel-results-new-record" class="panel-results__new-record" hidden>
-        <p class="panel-results__new-record-title" data-i18n="results.newRecord">Novo Recorde!</p>
-        <p id="panel-results-new-record-summary" class="panel-results__new-record-summary"></p>
-        <label class="panel-results__new-record-label" for="input-record-name">
-          <span data-i18n="results.yourName">Seu nome</span>
-        </label>
-        <input
-          type="text"
-          id="input-record-name"
-          class="panel-results__new-record-input"
-          maxlength="12"
-          autocomplete="off"
-          spellcheck="false"
-          placeholder="Digite seu nome"
-          data-i18n-placeholder="results.namePlaceholder"
-        />
-        <button type="button" id="btn-record-save" class="btn-panel panel-results__new-record-save">
-          <span data-i18n="results.save">Salvar recorde</span>
-        </button>
+        <div class="panel-results__hero">
+          <span
+            id="panel-results-medal"
+            class="panel-results__medal panel-results__medal--gold"
+            data-rank="1"
+            aria-hidden="true"
+          >1</span>
+          <p class="panel-results__rank-label" data-i18n="results.rankLabel">Sua posição no Top 10</p>
+          <p id="panel-results-score-big" class="panel-results__score-big">0</p>
+          <p id="panel-results-new-record-summary" class="panel-results__score-sub"></p>
+        </div>
+        <div id="panel-results-form" class="panel-results__form">
+          <p class="panel-results__entered-top" data-i18n="results.enteredTop">Você entrou no Top 10!</p>
+          <label class="panel-results__new-record-label" for="input-record-name">
+            <span data-i18n="results.yourName">Seu nome</span>
+          </label>
+          <input
+            type="text"
+            id="input-record-name"
+            class="panel-results__new-record-input"
+            maxlength="12"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="Digite seu nome"
+            data-i18n-placeholder="results.namePlaceholder"
+          />
+          <button type="button" id="btn-record-save" class="btn-panel panel-results__new-record-save">
+            <span data-i18n="results.save">Salvar recorde</span>
+          </button>
+        </div>
+        <div id="panel-results-saved" class="panel-results__saved" hidden>
+          <span class="panel-results__saved-check" aria-hidden="true">✓</span>
+          <p id="panel-results-saved-text" class="panel-results__saved-text"></p>
+        </div>
       </div>
       <p id="results-body" class="panel-results__body"></p>
       <div class="panel-results__actions">

@@ -14,6 +14,7 @@ const FRAGMENT_PATHS = [
   "../../html/pages/detection-screen.html",
   "../../html/pages/game-screen.html",
   "../../html/pages/overlay-countdown.html",
+  "../../html/pages/overlay-blockbreaker-tutorial.html",
   "../../html/pages/panel-results.html",
   "../../html/pages/transition-curtain.html",
 ];
